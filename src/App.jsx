@@ -1012,20 +1012,21 @@ export default function App() {
         <TickerTape />
 
         {/* Hero content */}
-        <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: isMobile ? "110px 24px 80px" : "100px 80px 80px", paddingTop: "120px" }}>
+        <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: isMobile ? "110px 24px 80px" : "120px 48px 80px", textAlign: "center" }}>
 
-          <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", marginBottom: "40px" }} className="fade-up">
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", marginBottom: "36px" }} className="fade-up">
             <div style={{ width: "28px", height: "1px", background: "#C8F542" }} />
             <span style={{ fontSize: "9px", color: "#C8F542", letterSpacing: "0.35em" }}>OPEN·SOURCE · CS · EDUCATION</span>
             <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#C8F542", animation: "pulse-ring 2s ease-out infinite" }} />
           </div>
 
           {/* Giant typewriter headline */}
-          <div style={{ maxWidth: "960px", marginBottom: "40px" }} className="fade-up stagger-1">
+          <div style={{ maxWidth: "960px", marginBottom: "32px" }} className="fade-up stagger-1">
             <h1 style={{
               fontFamily: "'DM Serif Display', Georgia, 'Times New Roman', serif",
               fontSize: isMobile ? "clamp(40px, 11vw, 64px)" : "clamp(60px, 6.5vw, 100px)",
               fontWeight: "400", lineHeight: "1.02", letterSpacing: "-0.025em", color: "#f0f0f0",
+              textAlign: "center",
             }}>
               {headline.split("Computer Science").map((part, i) => i === 0 ? part : (
                 <span key={i}>
@@ -1038,52 +1039,63 @@ export default function App() {
           </div>
 
           {/* Subtitle */}
-          <p className="fade-up stagger-2" style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: isMobile ? "16px" : "19px", color: "#999", lineHeight: "1.7", maxWidth: "520px", marginBottom: "48px" }}>
+          <p className="fade-up stagger-2" style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: isMobile ? "16px" : "19px", color: "#999", lineHeight: "1.7", maxWidth: "520px", marginBottom: "40px", textAlign: "center" }}>
             8 phases. 100% free. MIT · CMU · Stanford · Berkeley.
             No Coursera paywalls. Build real systems from nothing.
           </p>
 
           {/* Live progress sparkline */}
           {totalChecked > 0 && (
-            <div className="fade-up stagger-2" style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "32px" }}>
+            <div className="fade-up stagger-2" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "14px", marginBottom: "28px" }}>
               <Sparkline values={sparklineData} color="#C8F542" width={120} height={24} />
               <span style={{ fontSize: "10px", color: "#888", letterSpacing: "0.1em" }}>{totalChecked} tasks completed · {globalPct}%</span>
             </div>
           )}
 
-          {/* Phase matrix */}
-          <div className="fade-up stagger-3" style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(4,1fr)" : "repeat(8,1fr)", gap: "6px", maxWidth: isMobile ? "280px" : "640px", marginBottom: "48px" }}>
-            {phases.map((p, i) => {
-              const pp = phaseProgress(i);
-              const ppct = pp.total > 0 ? Math.round((pp.done / pp.total) * 100) : 0;
-              return (
-                <button key={p.id} className="phase-btn"
-                  onMouseEnter={() => setHovPhase(i)} onMouseLeave={() => setHovPhase(null)}
-                  onClick={() => goPhase(i)}
-                  style={{
-                    aspectRatio: "1", background: hovPhase === i ? p.darkColor : "#080808",
-                    border: `1px solid ${hovPhase === i ? p.color + "66" : "#181818"}`,
-                    cursor: "pointer", display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center", gap: "3px",
-                    transition: "all 0.2s cubic-bezier(0.4,0,0.2,1)", fontFamily: "inherit",
-                    transform: hovPhase === i ? "scale(1.08)" : "scale(1)",
-                    position: "relative", overflow: "hidden",
-                  }}>
-                  {ppct > 0 && (
-                    <div style={{ position: "absolute", bottom: 0, left: 0, height: "2px", width: `${ppct}%`, background: p.color, transition: "width 0.4s" }} />
-                  )}
-                  <span style={{ fontSize: isMobile ? "15px" : "20px", color: hovPhase === i ? p.color : "#2a2a2a", transition: "color 0.2s", fontFamily: "'DM Serif Display', serif" }}>{p.icon}</span>
-                  <span style={{ fontSize: "7px", color: hovPhase === i ? p.color : "#222", letterSpacing: "0.1em" }}>P{p.id}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {hovPhase !== null && (
-            <div className="fade-up" style={{ marginBottom: "16px", fontSize: "12px", color: phases[hovPhase].color, letterSpacing: "0.05em", minHeight: "20px" }}>
-              {phases[hovPhase].icon} Phase {phases[hovPhase].id} — {phases[hovPhase].title} · {phases[hovPhase].weeks}
+          {/* Phase matrix — fully centered */}
+          <div className="fade-up stagger-3" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "40px", width: "100%" }}>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "repeat(4,1fr)" : "repeat(8,1fr)",
+              gap: "6px",
+              width: isMobile ? "min(320px, 100%)" : "min(640px, 100%)",
+              margin: "0 auto",
+            }}>
+              {phases.map((p, i) => {
+                const pp = phaseProgress(i);
+                const ppct = pp.total > 0 ? Math.round((pp.done / pp.total) * 100) : 0;
+                return (
+                  <button key={p.id} className="phase-btn"
+                    onMouseEnter={() => setHovPhase(i)} onMouseLeave={() => setHovPhase(null)}
+                    onClick={() => goPhase(i)}
+                    style={{
+                      aspectRatio: "1", background: hovPhase === i ? p.darkColor : "#080808",
+                      border: `1px solid ${hovPhase === i ? p.color + "66" : "#181818"}`,
+                      cursor: "pointer", display: "flex", flexDirection: "column",
+                      alignItems: "center", justifyContent: "center", gap: "3px",
+                      transition: "all 0.2s cubic-bezier(0.4,0,0.2,1)", fontFamily: "inherit",
+                      transform: hovPhase === i ? "scale(1.08)" : "scale(1)",
+                      position: "relative", overflow: "hidden",
+                    }}>
+                    {ppct > 0 && (
+                      <div style={{ position: "absolute", bottom: 0, left: 0, height: "2px", width: `${ppct}%`, background: p.color, transition: "width 0.4s" }} />
+                    )}
+                    <span style={{ fontSize: isMobile ? "15px" : "20px", color: hovPhase === i ? p.color : "#2a2a2a", transition: "color 0.2s", fontFamily: "'DM Serif Display', serif" }}>{p.icon}</span>
+                    <span style={{ fontSize: "7px", color: hovPhase === i ? p.color : "#222", letterSpacing: "0.1em" }}>P{p.id}</span>
+                  </button>
+                );
+              })}
             </div>
-          )}
+
+            {/* Hover label — stays centered under the grid */}
+            <div style={{ height: "22px", marginTop: "12px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {hovPhase !== null && (
+                <div className="fade-up" style={{ fontSize: "12px", color: phases[hovPhase].color, letterSpacing: "0.05em", textAlign: "center" }}>
+                  {phases[hovPhase].icon} Phase {phases[hovPhase].id} — {phases[hovPhase].title} · {phases[hovPhase].weeks}
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Stats */}
           <div className="fade-up stagger-4" style={{ display: "flex", gap: isMobile ? "28px" : "52px", marginBottom: "48px", flexWrap: "wrap" }}>
