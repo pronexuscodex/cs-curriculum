@@ -1,208 +1,308 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
-/* ════════════════════════════════════════════════════════
-   RESOURCE DATA
-════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   INJECT GLOBAL CSS — animations, fonts, custom cursor, scrollbar
+═══════════════════════════════════════════════════════════════ */
+const GlobalStyles = () => {
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap');
+      
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      
+      ::-webkit-scrollbar { width: 4px; height: 4px; }
+      ::-webkit-scrollbar-track { background: #060606; }
+      ::-webkit-scrollbar-thumb { background: #1e1e1e; border-radius: 2px; }
+      ::-webkit-scrollbar-thumb:hover { background: #2e2e2e; }
+
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(18px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; } to { opacity: 1; }
+      }
+      @keyframes slideRight {
+        from { transform: scaleX(0); transform-origin: left; }
+        to   { transform: scaleX(1); transform-origin: left; }
+      }
+      @keyframes blink {
+        0%, 100% { opacity: 1; } 50% { opacity: 0; }
+      }
+
+      @keyframes pulse-ring {
+        0%   { transform: scale(0.8); opacity: 0.8; }
+        100% { transform: scale(1.6); opacity: 0; }
+      }
+      @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50%       { transform: translateY(-8px); }
+      }
+      @keyframes ticker {
+        0%   { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+      }
+      @keyframes shimmer {
+        0%   { background-position: -200% center; }
+        100% { background-position: 200% center; }
+      }
+      @keyframes glitch1 {
+        0%, 100% { clip-path: inset(0 0 95% 0); transform: translateX(-2px); }
+        20%       { clip-path: inset(30% 0 50% 0); transform: translateX(2px); }
+        40%       { clip-path: inset(60% 0 20% 0); transform: translateX(-1px); }
+        60%       { clip-path: inset(80% 0 5% 0); transform: translateX(1px); }
+        80%       { clip-path: inset(10% 0 80% 0); transform: translateX(-2px); }
+      }
+      @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+      .fade-up { animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both; }
+      .stagger-1 { animation-delay: 0.05s; }
+      .stagger-2 { animation-delay: 0.12s; }
+      .stagger-3 { animation-delay: 0.20s; }
+      .stagger-4 { animation-delay: 0.28s; }
+      .stagger-5 { animation-delay: 0.36s; }
+
+      .phase-btn:hover .phase-glow {
+        opacity: 1 !important;
+      }
+
+      .tab-btn { position: relative; overflow: hidden; }
+      .tab-btn::after {
+        content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+        height: 2px; background: currentColor; transform: scaleX(0);
+        transition: transform 0.2s ease;
+      }
+      .tab-btn.active::after { transform: scaleX(1); }
+
+      .resource-card { transition: all 0.22s cubic-bezier(0.4,0,0.2,1); }
+      .resource-card:hover { transform: translateY(-2px); }
+
+      .check-item { transition: all 0.18s ease; }
+      .check-item:hover { transform: translateX(3px); }
+
+      .cmd-overlay { animation: fadeIn 0.15s ease; }
+      .cmd-modal { animation: fadeUp 0.2s cubic-bezier(0.16,1,0.3,1); }
+
+      @keyframes celebratePop {
+        0%   { transform: scale(1); }
+        35%  { transform: scale(1.18); }
+        60%  { transform: scale(0.93); }
+        80%  { transform: scale(1.06); }
+        100% { transform: scale(1); }
+      }
+      @keyframes confettiFall {
+        0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+        100% { transform: translateY(40px) rotate(360deg); opacity: 0; }
+      }
+      @keyframes nudgePulse {
+        0%, 100% { box-shadow: 0 0 0 0 transparent; }
+        50% { box-shadow: 0 0 0 3px rgba(200,245,66,0.25); }
+      }
+      @keyframes streakGlow {
+        0%, 100% { text-shadow: 0 0 0 transparent; }
+        50% { text-shadow: 0 0 12px #C8F54288; }
+      }
+      .celebrate { animation: celebratePop 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+      .check-item:hover { transform: translateX(3px); }
+      .check-item-done { border-color: var(--accent-color) !important; }
+      .tab-btn-inactive { opacity: 0.6; }
+      .tab-btn-inactive:hover { opacity: 1; }
+      .phase-nav-btn:hover { background: rgba(255,255,255,0.04) !important; }
+      .phase-nav-btn:hover .phase-nav-name { color: #fff !important; }
+      .resource-top { border-top: 2px solid var(--accent) !important; }
+      .cta-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(200,245,66,0.25) !important; }
+      .cta-secondary:hover { border-color: #555 !important; color: #aaa !important; }
+
+      /* scanline removed */
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
+  return null;
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   DATA
+═══════════════════════════════════════════════════════════════ */
 const resourcesByPhase = {
   1: {
     courses: [
-      { name: "MIT 6.042J — Mathematics for Computer Science", url: "https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-fall-2010/", tag: "MIT OCW", stars: 5 },
-      { name: "Discrete Mathematics — UC San Diego", url: "https://www.coursera.org/specializations/discrete-mathematics", tag: "Coursera", stars: 5 },
-      { name: "CS50x — Harvard's Intro to Computer Science", url: "https://cs50.harvard.edu/x/", tag: "Harvard", stars: 5 },
-      { name: "Discrete Math — Shanghai Jiao Tong University", url: "https://www.coursera.org/learn/discrete-mathematics", tag: "Coursera", stars: 4 },
-      { name: "Khan Academy: Logic & Proofs", url: "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:logic", tag: "Khan", stars: 4 },
-      { name: "Codecademy: Discrete Math", url: "https://www.codecademy.com/learn/discrete-math", tag: "Codecademy", stars: 3 },
+      { name: "MIT 6.042J — Mathematics for Computer Science", url: "https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-fall-2010/", tag: "MIT OCW", free: true, stars: 5 },
+      { name: "CS50x — Harvard's Intro to Computer Science", url: "https://cs50.harvard.edu/x/", tag: "Harvard", free: true, stars: 5 },
+      { name: "Trefor Bazett: Discrete Math Full Course", url: "https://www.youtube.com/watch?v=rdXw7Ps9vxc&list=PLHXZ9OQGMqxersk8fUxiUMSIx0DBqsKZS", tag: "YouTube", free: true, stars: 5 },
+      { name: "MIT 6.042 Full Lecture Series", url: "https://www.youtube.com/playlist?list=PLB7540DEDD482705B", tag: "YouTube", free: true, stars: 4 },
+      { name: "Khan Academy: Logic & Proofs", url: "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:logic", tag: "Khan", free: true, stars: 4 },
     ],
     books: [
       { name: "Discrete Math: An Open Introduction (free PDF)", url: "https://discrete.openmathbooks.org/", tag: "Free Book" },
       { name: "A Cool Brisk Walk Through Discrete Math", url: "https://www.allthemath.org/", tag: "Free Book" },
-      { name: "MIT 6.042J Lecture Notes (free)", url: "https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-fall-2010/pages/readings/", tag: "Free Notes" },
-      { name: "The C Programming Language — Kernighan & Ritchie", url: "https://en.wikipedia.org/wiki/The_C_Programming_Language", tag: "Classic" },
+      { name: "MIT 6.042J Lecture Notes", url: "https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-fall-2010/pages/readings/", tag: "Free Notes" },
     ],
     practice: [
       { name: "GeeksforGeeks: Discrete Mathematics Tutorial", url: "https://www.geeksforgeeks.org/engineering-mathematics/discrete-mathematics-tutorial/", tag: "Practice" },
       { name: "VisuAlgo — Algorithm Visualizer", url: "https://visualgo.net/", tag: "Visual" },
-      { name: "Brilliant.org: Logic", url: "https://brilliant.org/courses/logic/", tag: "Interactive" },
     ],
     videos: [
-      { name: "MIT 6.042 Full Lecture Series (YouTube)", url: "https://www.youtube.com/playlist?list=PLB7540DEDD482705B", tag: "YouTube" },
-      { name: "Trefor Bazett: Discrete Math Full Course", url: "https://www.youtube.com/watch?v=rdXw7Ps9vxc&list=PLHXZ9OQGMqxersk8fUxiUMSIx0DBqsKZS", tag: "YouTube" },
+      { name: "MIT 6.042 Fall 2010 Full Lectures", url: "https://www.youtube.com/playlist?list=PLB7540DEDD482705B", tag: "YouTube" },
+      { name: "Trefor Bazett: Discrete Math", url: "https://www.youtube.com/watch?v=rdXw7Ps9vxc&list=PLHXZ9OQGMqxersk8fUxiUMSIx0DBqsKZS", tag: "YouTube" },
     ],
   },
   2: {
     courses: [
-      { name: "MIT 6.096 — Introduction to C & C++", url: "https://ocw.mit.edu/courses/6-s096-introduction-to-c-and-c-january-iap-2013/", tag: "MIT OCW", stars: 5 },
-      { name: "MIT 6.087 — Practical Programming in C", url: "https://ocw.mit.edu/courses/6-087-practical-programming-in-c-january-iap-2010/", tag: "MIT OCW", stars: 5 },
-      { name: "CS50x — Psets 3–5: Arrays, Memory, Data Structures", url: "https://cs50.harvard.edu/x/", tag: "Harvard", stars: 5 },
-      { name: "C Programming: Pointers & Memory — Dartmouth", url: "https://www.coursera.org/learn/c-programming-pointers-and-memory-management", tag: "Coursera", stars: 4 },
+      { name: "MIT 6.096 — Introduction to C & C++", url: "https://ocw.mit.edu/courses/6-s096-introduction-to-c-and-c-january-iap-2013/", tag: "MIT OCW", free: true, stars: 5 },
+      { name: "MIT 6.087 — Practical Programming in C", url: "https://ocw.mit.edu/courses/6-087-practical-programming-in-c-january-iap-2010/", tag: "MIT OCW", free: true, stars: 5 },
+      { name: "CS50x — Psets 3–5: Memory & Data Structures", url: "https://cs50.harvard.edu/x/", tag: "Harvard", free: true, stars: 5 },
+      { name: "Jacob Sorber: C Programming Series", url: "https://www.youtube.com/c/JacobSorber", tag: "YouTube", free: true, stars: 4 },
+      { name: "CS Circles (Waterloo) — C Exercises", url: "https://cscircles.cemc.uwaterloo.ca/", tag: "Waterloo", free: true, stars: 4 },
     ],
     books: [
       { name: "Beej's Guide to C Programming (free)", url: "https://beej.us/guide/bgc/", tag: "Free Book" },
-      { name: "Build Your Own Lisp — learn C by building a language", url: "http://www.buildyourownlisp.com/", tag: "Free Book" },
-      { name: "Learn C the Hard Way (online chapters)", url: "https://learncodethehardway.org/c/", tag: "Free Chapters" },
+      { name: "Build Your Own Lisp", url: "http://www.buildyourownlisp.com/", tag: "Free Book" },
     ],
     practice: [
-      { name: "GeeksforGeeks: Graph Algorithms", url: "https://www.geeksforgeeks.org/graph-data-structure-and-algorithms/", tag: "Practice" },
       { name: "VisuAlgo: Graph Traversal Visualizer", url: "https://visualgo.net/en/graphds", tag: "Visual" },
-      { name: "CS Circles (Waterloo) — C Exercises", url: "https://cscircles.cemc.uwaterloo.ca/", tag: "Interactive" },
+      { name: "GeeksforGeeks: Graph Algorithms", url: "https://www.geeksforgeeks.org/graph-data-structure-and-algorithms/", tag: "Practice" },
     ],
     videos: [
-      { name: "Jacob Sorber: C Pointers Deep Dive (YouTube)", url: "https://www.youtube.com/c/JacobSorber", tag: "YouTube" },
-      { name: "Low Level Learning (YouTube)", url: "https://www.youtube.com/@LowLevelLearning", tag: "YouTube" },
+      { name: "Jacob Sorber: C Pointers Deep Dive", url: "https://www.youtube.com/c/JacobSorber", tag: "YouTube" },
+      { name: "Low Level Learning", url: "https://www.youtube.com/@LowLevelLearning", tag: "YouTube" },
     ],
   },
   3: {
     courses: [
-      { name: "MIT 6.006 — Introduction to Algorithms", url: "https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/", tag: "MIT OCW", stars: 5 },
-      { name: "MIT 6.046J — Design & Analysis of Algorithms", url: "https://ocw.mit.edu/courses/6-046j-introduction-to-algorithms-sma-5503-fall-2005/", tag: "MIT OCW", stars: 5 },
-      { name: "Stanford: Algorithms Design & Analysis (Tim Roughgarden)", url: "https://www.coursera.org/specializations/algorithms", tag: "Coursera", stars: 5 },
-      { name: "UC Berkeley CS61B — Data Structures", url: "https://datastructur.es/", tag: "Berkeley", stars: 5 },
-      { name: "Georgia Tech: Data Structures & Algorithms", url: "https://www.coursera.org/specializations/data-structures-algorithms-georgia-tech", tag: "Coursera", stars: 4 },
+      { name: "MIT 6.006 — Introduction to Algorithms", url: "https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/", tag: "MIT OCW", free: true, stars: 5 },
+      { name: "MIT 6.046J — Design & Analysis of Algorithms", url: "https://ocw.mit.edu/courses/6-046j-introduction-to-algorithms-sma-5503-fall-2005/", tag: "MIT OCW", free: true, stars: 5 },
+      { name: "UC Berkeley CS61B — Data Structures", url: "https://datastructur.es/", tag: "Berkeley", free: true, stars: 5 },
+      { name: "Abdul Bari: Algorithms Full Course", url: "https://www.youtube.com/watch?v=0IAPZzGSbME&list=PLDN4rrl48XKpZkf03iYFl-O29szjTrs_O", tag: "YouTube", free: true, stars: 5 },
+      { name: "Stanford Algorithms — Tim Roughgarden", url: "https://www.youtube.com/playlist?list=PLXFMmlk03Dt7Q0xr1PIAriY5623cKiH7V", tag: "YouTube", free: true, stars: 5 },
     ],
     books: [
-      { name: "CLRS — Introduction to Algorithms (MIT Press)", url: "https://mitpress.mit.edu/9780262046305/introduction-to-algorithms/", tag: "Textbook" },
-      { name: "The Algorithm Design Manual — Skiena", url: "http://www.algorist.com/", tag: "Textbook" },
       { name: "Open Data Structures (free PDF)", url: "https://opendatastructures.org/", tag: "Free Book" },
+      { name: "CLRS — Introduction to Algorithms", url: "https://mitpress.mit.edu/9780262046305/introduction-to-algorithms/", tag: "Textbook" },
     ],
     practice: [
-      { name: "LeetCode (free tier — hundreds of problems)", url: "https://leetcode.com/", tag: "Practice" },
+      { name: "LeetCode (free tier)", url: "https://leetcode.com/", tag: "Practice" },
       { name: "VisuAlgo — Trees, Sorting, Graphs", url: "https://visualgo.net/", tag: "Visual" },
       { name: "HackerRank: Data Structures Track", url: "https://www.hackerrank.com/domains/data-structures", tag: "Practice" },
       { name: "USACO Training", url: "https://train.usaco.org/", tag: "Competitive" },
     ],
     videos: [
-      { name: "MIT 6.006 Fall 2011 Full Lectures (YouTube)", url: "https://www.youtube.com/playlist?list=PLUl4u3cNGP61Oq3tWYp6V_F-5jb5L2iHb", tag: "YouTube" },
+      { name: "MIT 6.006 Fall 2011 Full Lectures", url: "https://www.youtube.com/playlist?list=PLUl4u3cNGP61Oq3tWYp6V_F-5jb5L2iHb", tag: "YouTube" },
       { name: "Abdul Bari: Algorithms Full Course", url: "https://www.youtube.com/watch?v=0IAPZzGSbME&list=PLDN4rrl48XKpZkf03iYFl-O29szjTrs_O", tag: "YouTube" },
     ],
   },
   4: {
     courses: [
-      { name: "CMU 15-213 — Introduction to Computer Systems (CSAPP)", url: "https://www.cs.cmu.edu/~213/", tag: "CMU", stars: 5 },
-      { name: "Nand2Tetris Part I & II — Build a Computer from NAND", url: "https://www.coursera.org/learn/build-a-computer", tag: "Coursera", stars: 5 },
-      { name: "Berkeley CS162 — Operating Systems & Systems Programming", url: "https://cs162.org/", tag: "Berkeley", stars: 5 },
-      { name: "MIT 6.004 — Computation Structures", url: "https://ocw.mit.edu/courses/6-004-computation-structures-spring-2017/", tag: "MIT OCW", stars: 5 },
-      { name: "CMU: Introduction to Computer Architecture (YouTube)", url: "https://www.youtube.com/playlist?list=PL5PHm2jkkXmidJOd59REog9jDnPDTG6IJ", tag: "YouTube", stars: 5 },
-      { name: "Georgia Tech: Advanced Operating Systems", url: "https://www.udacity.com/course/advanced-operating-systems--ud189", tag: "Udacity", stars: 4 },
+      { name: "CMU 15-213 — Intro to Computer Systems (CSAPP)", url: "https://www.cs.cmu.edu/~213/", tag: "CMU", free: true, stars: 5 },
+      { name: "Nand2Tetris — Build a Computer from NAND", url: "https://www.nand2tetris.org/", tag: "Free", free: true, stars: 5 },
+      { name: "Berkeley CS162 — Operating Systems", url: "https://cs162.org/", tag: "Berkeley", free: true, stars: 5 },
+      { name: "MIT 6.004 — Computation Structures", url: "https://ocw.mit.edu/courses/6-004-computation-structures-spring-2017/", tag: "MIT OCW", free: true, stars: 5 },
+      { name: "CMU Computer Architecture Full Lectures", url: "https://www.youtube.com/playlist?list=PL5PHm2jkkXmidJOd59REog9jDnPDTG6IJ", tag: "YouTube", free: true, stars: 5 },
     ],
     books: [
-      { name: "CS:APP — Computer Systems: A Programmer's Perspective", url: "https://csapp.cs.cmu.edu/", tag: "Textbook" },
       { name: "Operating Systems: Three Easy Pieces (free PDF)", url: "https://pages.cs.wisc.edu/~remzi/OSTEP/", tag: "Free Book" },
-      { name: "xv6 — MIT's Teaching Operating System (free)", url: "https://pdos.csail.mit.edu/6.828/2023/xv6.html", tag: "Free OS" },
-      { name: "The Elements of Computing Systems (Nand2Tetris book)", url: "https://www.nand2tetris.org/book", tag: "Textbook" },
+      { name: "xv6 — MIT's Teaching OS (free)", url: "https://pdos.csail.mit.edu/6.828/2023/xv6.html", tag: "Free OS" },
+      { name: "CS:APP — Computer Systems", url: "https://csapp.cs.cmu.edu/", tag: "Textbook" },
     ],
     practice: [
-      { name: "CSAPP Labs — bomb lab, buffer overflow, malloc lab", url: "https://csapp.cs.cmu.edu/3e/labs.html", tag: "Labs" },
+      { name: "CSAPP Labs — bomb lab, buffer overflow, malloc", url: "https://csapp.cs.cmu.edu/3e/labs.html", tag: "Labs" },
       { name: "OSDev Wiki — Write an OS from scratch", url: "https://wiki.osdev.org/", tag: "Reference" },
-      { name: "Write a Simple OS from Scratch (GitHub tutorial)", url: "https://github.com/cfenollosa/os-tutorial", tag: "Tutorial" },
     ],
     videos: [
-      { name: "MIT 6.828 OS Engineering Full Lectures (YouTube)", url: "https://www.youtube.com/watch?v=y2oy-mRQlGE&list=PLfciLKR3SgqNJKKIKUliWoNBBH1Vhl-xD", tag: "YouTube" },
+      { name: "MIT 6.828 OS Engineering Full Lectures", url: "https://www.youtube.com/watch?v=y2oy-mRQlGE&list=PLfciLKR3SgqNJKKIKUliWoNBBH1Vhl-xD", tag: "YouTube" },
       { name: "Low Level Learning: OS Development Series", url: "https://www.youtube.com/@LowLevelLearning", tag: "YouTube" },
     ],
   },
   5: {
     courses: [
-      { name: "MIT 6.824 — Distributed Systems (Robert Morris)", url: "https://pdos.csail.mit.edu/6.824/", tag: "MIT", stars: 5 },
-      { name: "Stanford CS144 — Introduction to Computer Networks", url: "https://cs144.github.io/", tag: "Stanford", stars: 5 },
-      { name: "Georgia Tech: Computer Networking", url: "https://www.coursera.org/learn/computer-networking", tag: "Coursera", stars: 5 },
-      { name: "Cambridge: Distributed Systems — 8 Lectures", url: "https://www.youtube.com/playlist?list=PLeKd45zvjcDFUEv_ohr_HdUFe97RItdiB", tag: "YouTube", stars: 5 },
-      { name: "Distributed Systems Course (free website)", url: "https://www.distributedsystemscourse.com/", tag: "Free", stars: 4 },
+      { name: "MIT 6.824 — Distributed Systems", url: "https://pdos.csail.mit.edu/6.824/", tag: "MIT", free: true, stars: 5 },
+      { name: "Stanford CS144 — Computer Networks", url: "https://cs144.github.io/", tag: "Stanford", free: true, stars: 5 },
+      { name: "Cambridge: Distributed Systems — 8 Lectures", url: "https://www.youtube.com/playlist?list=PLeKd45zvjcDFUEv_ohr_HdUFe97RItdiB", tag: "YouTube", free: true, stars: 5 },
+      { name: "Distributed Systems Course (free website)", url: "https://www.distributedsystemscourse.com/", tag: "Free", free: true, stars: 4 },
     ],
     books: [
       { name: "Beej's Guide to Network Programming (free)", url: "https://beej.us/guide/bgnet/", tag: "Free Book" },
-      { name: "Designing Data-Intensive Applications — Kleppmann", url: "https://dataintensive.net/", tag: "Textbook" },
-      { name: "Distributed Systems — Tanenbaum 3rd Ed (free PDF)", url: "https://www.distributed-systems.net/index.php/books/ds3/", tag: "Free Book" },
-      { name: "Computer Networking: A Top-Down Approach", url: "https://gaia.cs.umass.edu/kurose_ross/index.html", tag: "Textbook" },
+      { name: "Distributed Systems — Tanenbaum (free PDF)", url: "https://www.distributed-systems.net/index.php/books/ds3/", tag: "Free Book" },
+      { name: "Designing Data-Intensive Applications", url: "https://dataintensive.net/", tag: "Textbook" },
     ],
     practice: [
       { name: "MIT 6.824 Labs — Raft, MapReduce, KV Store", url: "https://pdos.csail.mit.edu/6.824/labs/lab-mr.html", tag: "Labs" },
       { name: "PingCAP Talent Plan: Distributed Systems in Rust", url: "https://github.com/pingcap/talent-plan", tag: "GitHub" },
     ],
     videos: [
-      { name: "MIT 6.824 Spring 2020 Full Lectures (YouTube)", url: "https://www.youtube.com/playlist?list=PLrw6a1wE39_tb2fErI4-WkMbsvGQk9_UB", tag: "YouTube" },
+      { name: "MIT 6.824 Spring 2020 Full Lectures", url: "https://www.youtube.com/playlist?list=PLrw6a1wE39_tb2fErI4-WkMbsvGQk9_UB", tag: "YouTube" },
       { name: "Martin Kleppmann: Distributed Systems Lectures", url: "https://www.youtube.com/playlist?list=PLeKd45zvjcDFUEv_ohr_HdUFe97RItdiB", tag: "YouTube" },
     ],
   },
   6: {
     courses: [
-      { name: "Stanford Compilers — Alex Aiken", url: "https://www.classcentral.com/course/compilers-328", tag: "Stanford", stars: 5 },
-      { name: "Cornell CS6120 — Advanced Compilers (free, open)", url: "https://www.cs.cornell.edu/courses/cs6120/2020fa/", tag: "Cornell", stars: 5 },
-      { name: "Udacity: Programming Languages", url: "https://www.udacity.com/course/programming-languages--cs262", tag: "Udacity", stars: 4 },
-      { name: "Write an Interpreter in Go (Monkey Language)", url: "https://interpreterbook.com/", tag: "Book/Course", stars: 4 },
+      { name: "Stanford Compilers — Alex Aiken (YouTube)", url: "https://www.youtube.com/watch?v=sm0QQO-WZlM&list=PLTW_jEXtShYJVZr3fIXkr9LVE6IVpqOmS", tag: "YouTube", free: true, stars: 5 },
+      { name: "Cornell CS6120 — Advanced Compilers (open)", url: "https://www.cs.cornell.edu/courses/cs6120/2020fa/", tag: "Cornell", free: true, stars: 5 },
+      { name: "Udacity: Programming Languages (free)", url: "https://www.udacity.com/course/programming-languages--cs262", tag: "Udacity", free: true, stars: 4 },
     ],
     books: [
-      { name: "Crafting Interpreters — Bob Nystrom (fully free online)", url: "https://www.craftinginterpreters.com/", tag: "Free Book" },
-      { name: "Build Your Own Lisp — learn C by writing a Lisp", url: "http://www.buildyourownlisp.com/", tag: "Free Book" },
+      { name: "Crafting Interpreters — Bob Nystrom (free online)", url: "https://www.craftinginterpreters.com/", tag: "Free Book" },
+      { name: "Build Your Own Lisp — learn C by writing Lisp", url: "http://www.buildyourownlisp.com/", tag: "Free Book" },
       { name: "SICP — Structure and Interpretation of Computer Programs", url: "https://mitp-content-server.mit.edu/books/content/sectbyfn/books_pres_0/6515/sicp.zip/index.html", tag: "Free Book" },
-      { name: "Dragon Book — Compilers: Principles, Techniques (Aho)", url: "https://en.wikipedia.org/wiki/Compilers:_Principles,_Techniques,_and_Tools", tag: "Classic" },
     ],
     practice: [
       { name: "LLVM Tutorial — Building a JIT Compiler", url: "https://llvm.org/docs/tutorial/", tag: "Tutorial" },
-      { name: "Write a Brainfuck Interpreter (starter exercise)", url: "https://esolangs.org/wiki/Brainfuck", tag: "Exercise" },
-      { name: "Matt Might's Blog: Compilers & Programming Languages", url: "https://matt.might.net/articles/", tag: "Blog" },
+      { name: "Matt Might's Blog: Compilers & PLs", url: "https://matt.might.net/articles/", tag: "Blog" },
     ],
     videos: [
-      { name: "Stanford Compilers Full Lecture Series (YouTube)", url: "https://www.youtube.com/watch?v=sm0QQO-WZlM&list=PLTW_jEXtShYJVZr3fIXkr9LVE6IVpqOmS", tag: "YouTube" },
+      { name: "Stanford Compilers Full Lecture Series", url: "https://www.youtube.com/watch?v=sm0QQO-WZlM&list=PLTW_jEXtShYJVZr3fIXkr9LVE6IVpqOmS", tag: "YouTube" },
       { name: "Tsoding: Writing a Programming Language in C", url: "https://www.youtube.com/@tsoding", tag: "YouTube" },
     ],
   },
   7: {
     courses: [
-      { name: "CMU 15-445 — Introduction to Database Systems", url: "https://15445.courses.cs.cmu.edu/", tag: "CMU", stars: 5 },
-      { name: "CMU 15-721 — Advanced Database Systems", url: "https://15721.courses.cs.cmu.edu/", tag: "CMU", stars: 5 },
-      { name: "UC Berkeley CS186 — Introduction to Database Systems", url: "https://cs186berkeley.net/", tag: "Berkeley", stars: 5 },
-      { name: "Stanford: Databases Advanced Topics in SQL (edX)", url: "https://online.stanford.edu/courses/soe-ydatabases0005-databases-advanced-topics-sql", tag: "Stanford", stars: 4 },
+      { name: "CMU 15-445 — Introduction to Database Systems", url: "https://15445.courses.cs.cmu.edu/", tag: "CMU", free: true, stars: 5 },
+      { name: "CMU 15-721 — Advanced Database Systems", url: "https://15721.courses.cs.cmu.edu/", tag: "CMU", free: true, stars: 5 },
+      { name: "UC Berkeley CS186 — Intro to Database Systems", url: "https://cs186berkeley.net/", tag: "Berkeley", free: true, stars: 5 },
     ],
     books: [
       { name: "Readings in Database Systems — The Red Book (free)", url: "http://www.redbook.io/", tag: "Free Book" },
-      { name: "Designing Data-Intensive Applications — Kleppmann", url: "https://dataintensive.net/", tag: "Textbook" },
       { name: "Modern B-Tree Techniques (free research paper)", url: "https://w6113.github.io/files/papers/btreesurvey-graefe.pdf", tag: "Free Paper" },
-      { name: "Database Internals — Alex Petrov", url: "https://www.databass.dev/", tag: "Textbook" },
+      { name: "Designing Data-Intensive Applications", url: "https://dataintensive.net/", tag: "Textbook" },
     ],
     practice: [
       { name: "CMU 15-445 BusTub Labs (GitHub)", url: "https://github.com/cmu-db/bustub", tag: "GitHub Labs" },
       { name: "Build Your Own SQLite (CodeCrafters)", url: "https://app.codecrafters.io/courses/sqlite/overview", tag: "Tutorial" },
-      { name: "SQLite Source Code — study a real production DB", url: "https://www.sqlite.org/src/doc/trunk/README.md", tag: "Open Source" },
     ],
     videos: [
-      { name: "CMU 15-445 Full Lecture Videos (YouTube)", url: "https://www.youtube.com/playlist?list=PLSE8ODhjZXjbj8BMuIrRcacnQh20hmY9g", tag: "YouTube" },
+      { name: "CMU 15-445 Full Lecture Videos", url: "https://www.youtube.com/playlist?list=PLSE8ODhjZXjbj8BMuIrRcacnQh20hmY9g", tag: "YouTube" },
       { name: "Andy Pavlo: Database Internals Talks", url: "https://www.youtube.com/@CMUDatabaseGroup", tag: "YouTube" },
     ],
   },
   8: {
     courses: [
-      { name: "Stanford: Cryptography I — Dan Boneh", url: "https://www.coursera.org/learn/crypto", tag: "Coursera", stars: 5 },
-      { name: "Stanford: Cryptography II", url: "https://www.coursera.org/learn/crypto2", tag: "Coursera", stars: 5 },
-      { name: "pwn.college — Binary Exploitation (fully free)", url: "https://pwn.college/", tag: "Free", stars: 5 },
-      { name: "Cryptopals Challenges (free, self-paced)", url: "https://cryptopals.com/", tag: "Free", stars: 5 },
-      { name: "OverTheWire: Wargames (free)", url: "https://overthewire.org/wargames/", tag: "Free Labs", stars: 5 },
-      { name: "OpenSecurityTraining2 — Free OS Security Courses", url: "https://opensecuritytraining.info/", tag: "Free", stars: 4 },
+      { name: "Dan Boneh: Cryptography I (YouTube lectures)", url: "https://www.youtube.com/watch?v=2aHkqB2-46k&list=PL9oqNDMzcMClAPkp4pne89hWBFGmhw29Y", tag: "YouTube", free: true, stars: 5 },
+      { name: "pwn.college — Binary Exploitation (fully free)", url: "https://pwn.college/", tag: "Free", free: true, stars: 5 },
+      { name: "Cryptopals Challenges (free, self-paced)", url: "https://cryptopals.com/", tag: "Free", free: true, stars: 5 },
+      { name: "OverTheWire: Wargames (free)", url: "https://overthewire.org/wargames/", tag: "Free Labs", free: true, stars: 5 },
+      { name: "OpenSecurityTraining2 — Free OS Security Courses", url: "https://opensecuritytraining.info/", tag: "Free", free: true, stars: 4 },
     ],
     books: [
       { name: "A Graduate Course in Applied Cryptography (free PDF)", url: "https://toc.cryptobook.us/", tag: "Free Book" },
-      { name: "Hacking: The Art of Exploitation — Erickson", url: "https://nostarch.com/hacking2.htm", tag: "Textbook" },
       { name: "Serious Cryptography — Jean-Philippe Aumasson", url: "https://nostarch.com/seriouscrypto", tag: "Textbook" },
     ],
     practice: [
       { name: "CryptoHack.org — Cryptography Challenges", url: "https://cryptohack.org/", tag: "Practice" },
       { name: "picoCTF — Free CTF Platform for Beginners", url: "https://picoctf.org/", tag: "CTF" },
-      { name: "OWASP WebGoat — Secure Coding Practice", url: "https://owasp.org/www-project-webgoat/", tag: "Practice" },
       { name: "CTFtime.org — CTF Competition Calendar", url: "https://ctftime.org/", tag: "CTF" },
     ],
     videos: [
-      { name: "LiveOverflow: Hacking & Binary Exploitation (YouTube)", url: "https://www.youtube.com/@LiveOverflow", tag: "YouTube" },
+      { name: "LiveOverflow: Hacking & Binary Exploitation", url: "https://www.youtube.com/@LiveOverflow", tag: "YouTube" },
       { name: "Dan Boneh: Cryptography Full Lecture Series", url: "https://www.youtube.com/watch?v=2aHkqB2-46k&list=PL9oqNDMzcMClAPkp4pne89hWBFGmhw29Y", tag: "YouTube" },
     ],
   },
 };
 
-/* ════════════════════════════════════════════════════════
-   PHASE DATA
-════════════════════════════════════════════════════════ */
 const phases = [
   {
     id:1, title:"Mathematical Logic, Binary Systems & Foundations", shortTitle:"Math & Logic",
-    color:"#C8F542", darkColor:"#1c2800", icon:"∴", tagline:"From transistors to truth — where computation is born",
+    color:"#C8F542", darkColor:"#111a00", icon:"∴", tagline:"From transistors to truth — where computation is born",
     difficulty:"Foundations", weeks:"6–8 weeks",
     math:["Propositions, Boolean algebra, and truth tables","Logical equivalence, implication, XOR, De Morgan's Laws","Sets, relations, and functions","Proof techniques: induction, contradiction, contraposition","Recursion mathematics and structural induction","Binary arithmetic, modular arithmetic, number systems"],
     hardware:["Transistors as switches and voltage states","Logic gates: AND, OR, NOT, NAND, NOR, XOR","Binary encoding and machine representation","ALUs, registers, and CPU execution cycles","Instruction pipelines and bit manipulation","Memory cells and cache fundamentals"],
@@ -221,7 +321,7 @@ const phases = [
   },
   {
     id:2, title:"Memory, Pointers, Graphs & Dynamic Data Structures", shortTitle:"Memory & Graphs",
-    color:"#42C8F5", darkColor:"#001c26", icon:"→", tagline:"The machine's memory is yours to command",
+    color:"#42C8F5", darkColor:"#001519", icon:"→", tagline:"The machine's memory is yours to command",
     difficulty:"Intermediate", weeks:"6–8 weeks",
     math:["Graph theory: directed and undirected graphs, trees","Weighted graphs and adjacency representations","Graph traversal algorithms: BFS, DFS","Combinatorics fundamentals","Recurrence relations and their solutions","Probability basics for algorithm analysis"],
     hardware:["RAM architecture and address spaces","Stack vs heap physical memory layout","Pointer dereferencing at the machine level","Cache locality, spatial locality, prefetching","TLB and virtual address translation","Memory fragmentation effects"],
@@ -240,7 +340,7 @@ const phases = [
   },
   {
     id:3, title:"Algorithms, Trees & Complexity Theory", shortTitle:"Algorithms",
-    color:"#F5A742", darkColor:"#251700", icon:"Θ", tagline:"Measure everything — nothing is free",
+    color:"#F5A742", darkColor:"#1a1000", icon:"Θ", tagline:"Measure everything — nothing is free",
     difficulty:"Intermediate", weeks:"8–10 weeks",
     math:["Asymptotic analysis: Big-O, Big-Θ, Big-Ω","Recurrence solving: Master Theorem, substitution, recursion trees","Divide and conquer algorithmic paradigm","Combinatorial analysis and counting","Probability theory in algorithm analysis","Amortized analysis techniques"],
     hardware:["CPU branch prediction and mis-prediction penalties","Cache hierarchy and its effect on algorithm choice","Memory access patterns, prefetching, stride","Register pressure in tight inner loops","SIMD vectorization opportunities"],
@@ -259,7 +359,7 @@ const phases = [
   },
   {
     id:4, title:"Computer Architecture & Operating Systems", shortTitle:"Arch & OS",
-    color:"#F542A7", darkColor:"#260018", icon:"⚙", tagline:"The OS is just software — so build one",
+    color:"#F542A7", darkColor:"#1a0011", icon:"⚙", tagline:"The OS is just software — so build one",
     difficulty:"Advanced", weeks:"10–12 weeks",
     math:["Boolean algebra applied to instruction encoding","Modular arithmetic in memory addressing","Scheduling theory and basic queueing models","Deadlock detection via resource allocation graphs","Virtual memory address translation mathematics"],
     hardware:["CPU pipeline stages: fetch, decode, execute, memory, writeback","Out-of-order execution and speculative execution","Memory hierarchy: L1 / L2 / L3 cache, DRAM","TLB, page tables, and ASLR","Interrupt controllers and IRQ handling","DMA, I/O buses, and device drivers"],
@@ -278,7 +378,7 @@ const phases = [
   },
   {
     id:5, title:"Networking & Distributed Systems", shortTitle:"Networks",
-    color:"#A742F5", darkColor:"#160028", icon:"⇌", tagline:"Networks fail — design for it",
+    color:"#A742F5", darkColor:"#0f0019", icon:"⇌", tagline:"Networks fail — design for it",
     difficulty:"Advanced", weeks:"8–10 weeks",
     math:["Graph theory applied to network routing","Queueing theory for network performance modeling","Information theory basics and Shannon entropy","Consistency models and the CAP theorem","Paxos and Raft consensus algorithm mathematics","Bloom filters and probabilistic data structures"],
     hardware:["NIC hardware and interrupt coalescing","Kernel bypass networking with DPDK","TCP checksum offloading","Memory-mapped network I/O buffers","RDMA concepts and remote direct memory access"],
@@ -297,7 +397,7 @@ const phases = [
   },
   {
     id:6, title:"Compilers, Interpreters & Language Engineering", shortTitle:"Compilers",
-    color:"#F5E242", darkColor:"#252300", icon:"λ", tagline:"Languages are just programs — write one",
+    color:"#F5E242", darkColor:"#1a1a00", icon:"λ", tagline:"Languages are just programs — write one",
     difficulty:"Advanced", weeks:"10–12 weeks",
     math:["Formal grammars: regular, context-free, context-sensitive","The Chomsky hierarchy of language classes","Automata theory: DFA, NFA, pushdown automata","Regular expressions and the Kleene star","Type theory foundations","Lambda calculus and beta reduction"],
     hardware:["Call stack layout and calling conventions (System V ABI)","Register allocation and register spilling","Instruction selection and machine code generation","Branch prediction effects on compiled control flow","Cache effects of instruction layout and code locality"],
@@ -316,7 +416,7 @@ const phases = [
   },
   {
     id:7, title:"Databases, Storage Engines & Performance Engineering", shortTitle:"Databases",
-    color:"#42F5C8", darkColor:"#002820", icon:"⊕", tagline:"Data outlives code — store it right",
+    color:"#42F5C8", darkColor:"#001a14", icon:"⊕", tagline:"Data outlives code — store it right",
     difficulty:"Advanced", weeks:"8–10 weeks",
     math:["B-Tree structural invariants and height proofs","Relational algebra: select, project, join, union, difference","Transaction serializability theory","MVCC and snapshot isolation mathematics","Write-ahead logging correctness proofs","Index selectivity statistics and cardinality estimation"],
     hardware:["Disk I/O: seeks, rotational latency, sequential reads","SSD internals: NAND, wear leveling, write amplification","Buffer pool and OS page cache interaction","fsync vs fdatasync durability guarantees","NUMA topology effects on concurrent DB workloads"],
@@ -335,7 +435,7 @@ const phases = [
   },
   {
     id:8, title:"Security, Cryptography & Advanced Systems", shortTitle:"Security",
-    color:"#F55442", darkColor:"#280a00", icon:"⚿", tagline:"The attacker reads your code — so should you",
+    color:"#F55442", darkColor:"#1a0400", icon:"⚿", tagline:"The attacker reads your code — so should you",
     difficulty:"Expert", weeks:"8–10 weeks",
     math:["Modular arithmetic and finite fields (GF(2^n))","Group theory foundations for elliptic curve cryptography","RSA: Euler's theorem and key generation mathematics","SHA-256 and cryptographic hash function properties","Information-theoretic security and perfect secrecy","Formal security proofs via reduction arguments"],
     hardware:["CPU speculative execution: Spectre and Meltdown","Hardware Security Modules (HSM) and secure enclaves","Intel SGX trusted execution environments","Side-channel attacks: timing, cache, power analysis","ASLR, stack canaries, NX/DEP bits at hardware level"],
@@ -366,27 +466,27 @@ const capstoneProjects = [
 ];
 
 const difficultyMeta = {
-  "Foundations": { color:"#C8F542", bg:"#1c2800" },
-  "Intermediate": { color:"#42C8F5", bg:"#001c26" },
-  "Advanced":    { color:"#F5A742", bg:"#251700" },
-  "Expert":      { color:"#F55442", bg:"#280a00" },
+  "Foundations": { color:"#C8F542", bg:"#111a00" },
+  "Intermediate": { color:"#42C8F5", bg:"#001519" },
+  "Advanced":    { color:"#F5A742", bg:"#1a1000" },
+  "Expert":      { color:"#F55442", bg:"#1a0400" },
 };
 
 const tagColors = {
-  "MIT OCW":"#42C8F5","CMU":"#F55442","Stanford":"#F5E242","Coursera":"#A742F5",
-  "Berkeley":"#F5A742","Harvard":"#42C8F5","Khan":"#42F5C8","Codecademy":"#A742F5",
+  "MIT OCW":"#42C8F5","CMU":"#F55442","Stanford":"#F5E242","Berkeley":"#F5A742",
+  "Harvard":"#ff6b6b","Khan":"#42F5C8","Waterloo":"#F5A742",
   "Free Book":"#C8F542","Free":"#C8F542","Free Labs":"#C8F542","Free Notes":"#C8F542",
-  "Free Paper":"#C8F542","Free Sample":"#C8F542","Free Chapters":"#C8F542","Free OS":"#C8F542",
-  "YouTube":"#F55442","MIT":"#42C8F5","Cornell":"#F5E242","Udacity":"#42C8F5",
-  "Practice":"#aaa","Visual":"#aaa","Interactive":"#aaa","Blog":"#aaa",
-  "Tutorial":"#F5A742","GitHub":"#aaa","GitHub Labs":"#F5A742","Labs":"#F5A742",
-  "Open Source":"#aaa","Textbook":"#777","Classic":"#777","CTF":"#F55442",
-  "Book/Course":"#A742F5","Competitive":"#F55442","Reference":"#aaa","Exercise":"#aaa",
+  "Free Paper":"#C8F542","Free OS":"#C8F542","Free Chapters":"#C8F542",
+  "YouTube":"#FF4444","MIT":"#42C8F5","Cornell":"#F5E242","Udacity":"#42C8F5",
+  "Practice":"#888","Visual":"#888","Interactive":"#888","Blog":"#888",
+  "Tutorial":"#F5A742","GitHub":"#888","GitHub Labs":"#F5A742","Labs":"#F5A742",
+  "Open Source":"#888","Textbook":"#666","Classic":"#666","CTF":"#F55442",
+  "Competitive":"#F55442","Reference":"#888",
 };
 
-/* ════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    HOOKS
-════════════════════════════════════════════════════════ */
+═══════════════════════════════════════════════════════════════ */
 function useWindowSize() {
   const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 1400);
   useEffect(() => {
@@ -397,1153 +497,1147 @@ function useWindowSize() {
   return w;
 }
 
-/* ════════════════════════════════════════════════════════
-   STAR RATING
-════════════════════════════════════════════════════════ */
-function Stars({ n, color }) {
+function useTypewriter(text, speed = 40, startDelay = 200) {
+  const [displayed, setDisplayed] = useState("");
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    setDisplayed(""); setDone(false);
+    const t0 = setTimeout(() => {
+      let i = 0;
+      const iv = setInterval(() => {
+        i++;
+        setDisplayed(text.slice(0, i));
+        if (i >= text.length) { clearInterval(iv); setDone(true); }
+      }, speed);
+      return () => clearInterval(iv);
+    }, startDelay);
+    return () => clearTimeout(t0);
+  }, [text]);
+  return { displayed, done };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CURSOR GLOW
+═══════════════════════════════════════════════════════════════ */
+function CursorGlow() {
+  const [pos, setPos] = useState({ x: -200, y: -200 });
+  useEffect(() => {
+    const h = (e) => setPos({ x: e.clientX, y: e.clientY });
+    window.addEventListener("mousemove", h);
+    return () => window.removeEventListener("mousemove", h);
+  }, []);
   return (
-    <span style={{ letterSpacing:"2px", fontSize:"12px" }}>
-      {[1,2,3,4,5].map(i => (
-        <span key={i} style={{ color: i<=n ? color : "#2a2a2a" }}>★</span>
-      ))}
-    </span>
+    <div style={{
+      position: "fixed", pointerEvents: "none", zIndex: 0,
+      left: pos.x - 200, top: pos.y - 200,
+      width: 400, height: 400, borderRadius: "50%",
+      background: "radial-gradient(circle, rgba(200,245,66,0.04) 0%, transparent 70%)",
+      transition: "left 0.08s ease, top 0.08s ease",
+    }} />
   );
 }
 
-/* ════════════════════════════════════════════════════════
-   RESOURCE CARD
-════════════════════════════════════════════════════════ */
-function ResourceCard({ item, accent }) {
-  const tc = tagColors[item.tag] || "#666";
-  const [hov, setHov] = useState(false);
+/* ═══════════════════════════════════════════════════════════════
+   COMMAND PALETTE
+═══════════════════════════════════════════════════════════════ */
+function CommandPalette({ phases, onPhase, onClose, checkedItems }) {
+  const [query, setQuery] = useState("");
+  const inputRef = useRef(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const commands = [
+    ...phases.map(p => ({
+      label: `Phase ${p.id} — ${p.shortTitle}`,
+      sub: p.title, icon: p.icon, color: p.color,
+      action: () => { onPhase(p.id - 1); onClose(); }
+    })),
+    { label: "Home", sub: "Back to landing page", icon: "◉", color: "#888", action: onClose },
+  ];
+
+  const filtered = query
+    ? commands.filter(c => c.label.toLowerCase().includes(query.toLowerCase()) || c.sub.toLowerCase().includes(query.toLowerCase()))
+    : commands;
+
   return (
-    <a href={item.url} target="_blank" rel="noopener noreferrer"
-      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{
-        display:"flex", flexDirection:"column", gap:"10px",
-        padding:"16px 18px",
-        background: hov ? "#131313" : "#0d0d0d",
-        border:`1px solid ${hov ? accent+"66" : "#1e1e1e"}`,
-        borderRadius:"10px", textDecoration:"none",
-        transition:"all 0.18s", cursor:"pointer",
+    <div className="cmd-overlay" onClick={onClose} style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+      zIndex: 2000, display: "flex", alignItems: "flex-start",
+      justifyContent: "center", paddingTop: "15vh",
+      backdropFilter: "blur(8px)",
+    }}>
+      <div className="cmd-modal" onClick={e => e.stopPropagation()} style={{
+        width: "min(560px, 90vw)",
+        background: "#080808", border: "1px solid #2a2a2a",
+        borderRadius: "8px", overflow: "hidden",
+        boxShadow: "0 32px 80px rgba(0,0,0,0.8), 0 0 0 1px #C8F54222",
       }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"12px" }}>
-        <span style={{ fontSize:"14px", color: hov ? "#fff" : "#ddd", lineHeight:"1.5", flex:1, fontWeight:"500" }}>
-          {item.name}
-        </span>
-        <span style={{
-          fontSize:"10px", padding:"3px 8px", borderRadius:"4px", flexShrink:0,
-          background: tc+"18", color: tc, border:`1px solid ${tc}33`,
-          whiteSpace:"nowrap", fontWeight:"600", letterSpacing:"0.04em",
-        }}>
-          {item.tag}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px 16px", borderBottom: "1px solid #141414" }}>
+          <span style={{ fontSize: "14px", color: "#444" }}>⌘</span>
+          <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
+            placeholder="Search phases, topics..."
+            style={{
+              flex: 1, background: "none", border: "none", outline: "none",
+              color: "#e0e0e0", fontSize: "14px", fontFamily: "'DM Mono', 'Courier New', monospace",
+            }} />
+          <span style={{ fontSize: "10px", color: "#333", fontFamily: "'DM Mono', monospace", border: "1px solid #222", padding: "2px 6px", borderRadius: "3px" }}>ESC</span>
+        </div>
+        <div style={{ maxHeight: "360px", overflowY: "auto" }}>
+          {filtered.map((cmd, i) => (
+            <div key={i} onClick={cmd.action} style={{
+              display: "flex", alignItems: "center", gap: "14px",
+              padding: "12px 16px", cursor: "pointer",
+              borderBottom: "1px solid #0d0d0d",
+              transition: "background 0.1s",
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = "#111"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            >
+              <div style={{
+                width: "30px", height: "30px", background: cmd.color + "18",
+                border: `1px solid ${cmd.color}33`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "14px", color: cmd.color, flexShrink: 0,
+                fontFamily: "'DM Serif Display', Georgia, serif",
+              }}>{cmd.icon}</div>
+              <div>
+                <div style={{ fontSize: "13px", color: "#ddd", fontWeight: "500" }}>{cmd.label}</div>
+                <div style={{ fontSize: "11px", color: "#777", marginTop: "1px", fontFamily: "'DM Mono', monospace" }}>{cmd.sub}</div>
+              </div>
+            </div>
+          ))}
+          {filtered.length === 0 && (
+            <div style={{ padding: "24px", textAlign: "center", color: "#666", fontSize: "13px", fontFamily: "'DM Mono', monospace" }}>
+              No results for "{query}"
+            </div>
+          )}
+        </div>
+        <div style={{ padding: "10px 16px", borderTop: "1px solid #0d0d0d", display: "flex", gap: "16px" }}>
+          {[["↑↓", "navigate"], ["↵", "select"], ["esc", "close"]].map(([k, v]) => (
+            <span key={k} style={{ fontSize: "10px", color: "#888", fontFamily: "'DM Mono', monospace" }}>
+              <span style={{ color: "#ccc", background: "#1a1a1a", border: "1px solid #333", padding: "1px 5px", borderRadius: "2px", marginRight: "5px" }}>{k}</span>{v}
+            </span>
+          ))}
+        </div>
       </div>
-      {item.stars && <Stars n={item.stars} color={accent} />}
-    </a>
+    </div>
   );
 }
 
-/* ════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
+   PROGRESS RING
+═══════════════════════════════════════════════════════════════ */
+function ProgressRing({ pct, size = 38, stroke = 2.5, color = "#C8F542", label }) {
+  const r = (size - stroke * 2) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = (pct / 100) * circ;
+  return (
+    <div style={{ position: "relative", width: size, height: size }}>
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#1a1a1a" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+          strokeDasharray={`${dash} ${circ - dash}`} strokeLinecap="round"
+          style={{ transition: "stroke-dasharray 0.8s cubic-bezier(0.4,0,0.2,1)" }} />
+      </svg>
+      {label !== undefined && (
+        <div style={{
+          position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "8px", color, fontFamily: "'DM Mono', monospace", fontWeight: "600",
+        }}>{label}%</div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SPARKLINE
+═══════════════════════════════════════════════════════════════ */
+function Sparkline({ values, color, width = 80, height = 20 }) {
+  if (!values || values.length < 2) return null;
+  const max = Math.max(...values, 1);
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * width;
+    const y = height - (v / max) * (height - 2) - 1;
+    return `${x},${y}`;
+  }).join(" ");
+  return (
+    <svg width={width} height={height} style={{ overflow: "visible" }}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+      <circle cx={pts.split(" ").pop().split(",")[0]} cy={pts.split(" ").pop().split(",")[1]}
+        r="2.5" fill={color} />
+    </svg>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ANIMATED ROADMAP TIMELINE
+═══════════════════════════════════════════════════════════════ */
+function RoadmapTimeline({ phases, activePhase, onPhase }) {
+  return (
+    <div style={{ position: "relative", padding: "8px 0 8px 16px" }}>
+      {/* Vertical line */}
+      <div style={{
+        position: "absolute", left: "24px", top: 0, bottom: 0, width: "1px",
+        background: "linear-gradient(180deg, #C8F542 0%, #42C8F5 25%, #F5A742 50%, #F542A7 75%, #F55442 100%)",
+        opacity: 0.2,
+      }} />
+      {phases.map((p, i) => {
+        const isActive = i === activePhase;
+        const isPast = i < activePhase;
+        return (
+          <div key={p.id} onClick={() => onPhase(i)} style={{
+            display: "flex", alignItems: "flex-start", gap: "16px",
+            marginBottom: i < phases.length - 1 ? "20px" : 0,
+            cursor: "pointer", opacity: isPast ? 0.5 : 1,
+            transition: "opacity 0.2s",
+          }}>
+            <div style={{
+              width: "16px", height: "16px", borderRadius: "50%", flexShrink: 0,
+              background: isActive ? p.color : (isPast ? p.color + "66" : "#111"),
+              border: `2px solid ${isActive ? p.color : (isPast ? p.color + "44" : "#2a2a2a")}`,
+              boxShadow: isActive ? `0 0 0 4px ${p.color}22, 0 0 12px ${p.color}44` : "none",
+              transition: "all 0.3s ease", zIndex: 1,
+              marginTop: "2px",
+            }} />
+            <div>
+              <div style={{
+                fontSize: "11px", color: isActive ? "#fff" : "#888",
+                fontFamily: "'DM Mono', monospace",
+                fontWeight: isActive ? "600" : "400",
+              }}>
+                P{p.id} <span style={{ color: isActive ? p.color : "#555" }}>{p.icon}</span> {p.shortTitle}
+              </div>
+              {isActive && (
+                <div style={{ fontSize: "10px", color: "#888", marginTop: "2px", fontFamily: "'DM Mono', monospace" }}>{p.weeks}</div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NOISE + SCANLINE OVERLAYS
+═══════════════════════════════════════════════════════════════ */
+const Overlays = () => (
+  <>
+    {/* scanline removed */}
+    <svg style={{ position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 997, opacity: 0.025 }} xmlns="http://www.w3.org/2000/svg">
+      <filter id="nx"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" stitchTiles="stitch" /><feColorMatrix type="saturate" values="0" /></filter>
+      <rect width="100%" height="100%" filter="url(#nx)" />
+    </svg>
+  </>
+);
+
+/* ═══════════════════════════════════════════════════════════════
    SECTION LABEL
-════════════════════════════════════════════════════════ */
+═══════════════════════════════════════════════════════════════ */
 function SectionLabel({ children, color }) {
   return (
-    <div style={{
-      display:"flex", alignItems:"center", gap:"10px", marginBottom:"18px",
-    }}>
-      <div style={{ width:"4px", height:"18px", borderRadius:"2px", background:color, flexShrink:0 }} />
-      <span style={{ fontSize:"11px", color, letterSpacing:"0.2em", textTransform:"uppercase", fontWeight:"700" }}>
-        {children}
-      </span>
-      <div style={{ flex:1, height:"1px", background:"#1a1a1a" }} />
+    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "18px", marginTop: "6px" }}>
+      <div style={{ width: "3px", height: "14px", background: color, borderRadius: "1px", flexShrink: 0, boxShadow: `0 0 8px ${color}88` }} />
+      <span style={{ fontSize: "11px", color, letterSpacing: "0.22em", textTransform: "uppercase", fontWeight: "700", fontFamily: "'DM Mono', monospace" }}>{children}</span>
+      <div style={{ flex: 1, height: "1px", background: `linear-gradient(90deg, ${color}30, transparent)` }} />
     </div>
   );
 }
 
-/* ════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    TOPIC ITEM
-════════════════════════════════════════════════════════ */
-function TopicItem({ text, color }) {
+═══════════════════════════════════════════════════════════════ */
+function TopicItem({ text, color, delay = 0 }) {
   return (
-    <div style={{
-      display:"flex", gap:"14px", alignItems:"flex-start",
-      padding:"12px 0", borderBottom:"1px solid #141414",
+    <div className="fade-up" style={{
+      display: "flex", gap: "14px", alignItems: "flex-start",
+      padding: "11px 0", borderBottom: "1px solid #0c0c0c",
+      animationDelay: `${delay}ms`,
     }}>
-      <div style={{ width:"6px", height:"6px", borderRadius:"50%", background:color, flexShrink:0, marginTop:"8px" }} />
-      <span style={{ fontSize:"15px", color:"#c8c8c8", lineHeight:"1.6" }}>{text}</span>
+      <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: color, flexShrink: 0, marginTop: "10px", boxShadow: `0 0 6px ${color}` }} />
+      <span style={{ fontSize: "15px", color: "#d4d4d4", lineHeight: "1.75", fontFamily: "'DM Serif Display', Georgia, serif" }}>{text}</span>
     </div>
   );
 }
 
-/* ════════════════════════════════════════════════════════
-   CODE BLOCK
-════════════════════════════════════════════════════════ */
-function CodeBlock({ children, color, title }) {
-  return (
-    <div style={{ marginTop:"24px" }}>
-      {title && (
-        <div style={{ fontSize:"11px", color:"#444", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:"8px" }}>
-          {title}
-        </div>
-      )}
-      <pre style={{
-        background:"#060606", border:`1px solid #1a1a1a`,
-        borderLeft:`3px solid ${color}`, borderRadius:"0 10px 10px 0",
-        padding:"22px 26px", fontSize:"13px", color:"#666",
-        lineHeight:"2", overflowX:"auto", margin:0,
-        fontFamily:"'Courier New', Menlo, monospace",
-      }}>
-        {children}
-      </pre>
-    </div>
-  );
-}
-
-/* ════════════════════════════════════════════════════════
-   MASTERY CHECK ITEM
-════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   CHECK ITEM
+═══════════════════════════════════════════════════════════════ */
 function CheckItem({ text, checked, accent, darkColor, onToggle }) {
-  const [hov, setHov] = useState(false);
+  const [justChecked, setJustChecked] = useState(false);
+  const handleToggle = () => {
+    if (!checked) { setJustChecked(true); setTimeout(() => setJustChecked(false), 450); }
+    onToggle();
+  };
   return (
-    <div onClick={onToggle}
-      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{
-        display:"flex", gap:"14px", alignItems:"flex-start",
-        padding:"14px 16px", marginBottom:"8px",
-        background: checked ? darkColor : (hov ? "#111" : "#0d0d0d"),
-        border:`1px solid ${checked ? accent+"55" : (hov ? "#2a2a2a" : "#1a1a1a")}`,
-        borderRadius:"8px", cursor:"pointer", transition:"all 0.16s",
-      }}>
+    <div onClick={handleToggle} className="check-item" style={{
+      display: "flex", gap: "14px", alignItems: "flex-start",
+      padding: "13px 16px", marginBottom: "6px",
+      background: checked ? darkColor : "#080808",
+      border: `1px solid ${checked ? accent + "55" : "#141414"}`,
+      borderRadius: "4px", cursor: "pointer",
+      transition: "all 0.18s ease",
+      transform: justChecked ? "scale(1.01)" : "scale(1)",
+      boxShadow: justChecked ? `0 0 16px ${accent}33` : "none",
+    }}>
       <div style={{
-        width:"20px", height:"20px", borderRadius:"5px", flexShrink:0, marginTop:"2px",
-        border:`2px solid ${checked ? accent : "#2a2a2a"}`,
+        width: "18px", height: "18px", flexShrink: 0, marginTop: "2px",
+        border: `1.5px solid ${checked ? accent : "#2a2a2a"}`,
         background: checked ? accent : "transparent",
-        display:"flex", alignItems:"center", justifyContent:"center",
-        fontSize:"11px", color:"#000", fontWeight:"bold", transition:"all 0.16s",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: "10px", color: "#000", fontWeight: "900",
+        transition: "all 0.18s cubic-bezier(0.36, 0.07, 0.19, 0.97)",
+        boxShadow: checked ? `0 0 10px ${accent}66` : "none",
+        animation: justChecked ? "celebratePop 0.45s cubic-bezier(0.36,0.07,0.19,0.97)" : "none",
       }}>
         {checked ? "✓" : ""}
       </div>
       <span style={{
-        fontSize:"15px", color: checked ? "#666" : "#ccc",
+        fontSize: "14px", color: checked ? "#555" : "#e0e0e0",
         textDecoration: checked ? "line-through" : "none",
-        lineHeight:"1.6",
-      }}>
-        {text}
-      </span>
+        lineHeight: "1.7", fontFamily: "'DM Serif Display', Georgia, serif",
+        transition: "color 0.2s",
+      }}>{text}</span>
     </div>
   );
 }
 
-/* ════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
+   RESOURCE CARD
+═══════════════════════════════════════════════════════════════ */
+function ResourceCard({ item, accent, delay = 0 }) {
+  const tc = tagColors[item.tag] || "#666";
+  return (
+    <a href={item.url} target="_blank" rel="noopener noreferrer"
+      className="resource-card fade-up"
+      style={{
+        display: "flex", flexDirection: "column", gap: "10px",
+        padding: "15px 17px",
+        background: item.stars === 5 ? "#0a0a0a" : "#070707",
+        border: item.stars === 5 ? `1px solid ${accent}22` : "1px solid #181818",
+        borderRadius: "4px",
+        textDecoration: "none", position: "relative",
+        animationDelay: `${delay}ms`,
+        transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)",
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.border = `1px solid ${accent}66`;
+        e.currentTarget.style.background = "#0f0f0f";
+        e.currentTarget.style.boxShadow = `0 8px 28px ${accent}18`;
+        e.currentTarget.style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.border = item.stars === 5 ? `1px solid ${accent}22` : "1px solid #181818";
+        e.currentTarget.style.background = "#070707";
+        e.currentTarget.style.boxShadow = "none";
+        e.currentTarget.style.transform = "translateY(0)";
+      }}
+    >
+      <div style={{ position: "absolute", top: "-1px", right: "10px", display: "flex", gap: "4px" }}>
+        {item.stars === 5 && (
+          <div style={{ background: accent, color: "#000", fontSize: "7px", fontWeight: "900", letterSpacing: "0.15em", padding: "2px 7px", borderRadius: "0 0 3px 3px", fontFamily: "'DM Mono', monospace" }}>TOP</div>
+        )}
+        {item.free && (
+          <div style={{ background: "#C8F542", color: "#000", fontSize: "7px", fontWeight: "900", letterSpacing: "0.18em", padding: "2px 7px", borderRadius: "0 0 3px 3px", fontFamily: "'DM Mono', monospace" }}>FREE</div>
+        )}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+        <span style={{ fontSize: "14px", color: "#e8e8e8", lineHeight: "1.55", flex: 1, fontFamily: "'DM Serif Display', Georgia, serif" }}>
+          {item.name}
+        </span>
+        <span style={{
+          fontSize: "9px", padding: "3px 8px", flexShrink: 0,
+          background: tc + "15", color: tc, border: `1px solid ${tc}22`,
+          whiteSpace: "nowrap", fontWeight: "600", letterSpacing: "0.12em",
+          fontFamily: "'DM Mono', monospace", textTransform: "uppercase",
+        }}>{item.tag}</span>
+      </div>
+      {item.stars && (
+        <span style={{ letterSpacing: "2px", fontSize: "11px" }}>
+          {[1, 2, 3, 4, 5].map(i => <span key={i} style={{ color: i <= item.stars ? accent : "#1e1e1e" }}>★</span>)}
+        </span>
+      )}
+    </a>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TICKER TAPE
+═══════════════════════════════════════════════════════════════ */
+function TickerTape() {
+  const items = ["MIT OCW", "Harvard CS50x", "CMU 15-213", "Berkeley CS162", "Stanford CS144", "MIT 6.824", "Cornell CS6120", "Nand2Tetris", "100% FREE", "NO PAYWALLS", "8 PHASES", "BUILD EVERYTHING"];
+  const text = items.join("  ·  ");
+  return (
+    <div style={{ overflow: "hidden", background: "#0a0a0a", borderBottom: "1px solid #111", height: "28px", display: "flex", alignItems: "center" }}>
+      <div style={{ display: "flex", animation: "ticker 30s linear infinite", whiteSpace: "nowrap" }}>
+        {[text, text].map((t, i) => (
+          <span key={i} style={{ fontSize: "9px", color: "#555", letterSpacing: "0.2em", fontFamily: "'DM Mono', monospace", paddingRight: "80px" }}>{t}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    MAIN APP
-════════════════════════════════════════════════════════ */
+═══════════════════════════════════════════════════════════════ */
 export default function App() {
   const width = useWindowSize();
-  const isMobile  = width < 768;
-  const isTablet  = width >= 768 && width < 1120;
+  const isMobile = width < 768;
+  const isTablet = width >= 768 && width < 1120;
 
-  const [landing,       setLanding]       = useState(true);
-  const [activePhase,   setActivePhase]   = useState(0);
-  const [activeTab,     setActiveTab]     = useState("overview");
-  const [checkedItems,  setCheckedItems]  = useState({});
-  const [sidebarOpen,   setSidebarOpen]   = useState(false);
-  const [showCapstone,  setShowCapstone]  = useState(false);
-  const [resFilter,     setResFilter]     = useState("all");
+  const [view, setView] = useState("landing"); // "landing" | "main" | "capstone"
+  const [activePhase, setActivePhase] = useState(0);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [checkedItems, setCheckedItems] = useState({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [resFilter, setResFilter] = useState("all");
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [hovPhase, setHovPhase] = useState(null);
+  const [sidebarTab, setSidebarTab] = useState("nav"); // "nav" | "timeline"
   const contentRef = useRef(null);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const h = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setCmdOpen(c => !c); }
+      if (e.key === "Escape") setCmdOpen(false);
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
 
   const phase = phases[activePhase];
   const resources = resourcesByPhase[phase.id];
 
-  const totalPossible = phases.reduce((a,p) =>
+  const totalPossible = phases.reduce((a, p) =>
     a + p.checklist.theory.length + p.checklist.programming.length + p.checklist.engineering.length, 0);
   const totalChecked = Object.values(checkedItems).filter(Boolean).length;
-  const pct = Math.round((totalChecked/totalPossible)*100);
+  const globalPct = Math.round((totalChecked / totalPossible) * 100);
 
-  const phaseProgress = (idx) => {
+  const phaseProgress = useCallback((idx) => {
     const p = phases[idx]; let n = 0;
-    ["theory","programming","engineering"].forEach(s =>
+    ["theory", "programming", "engineering"].forEach(s =>
       p.checklist[s].forEach(item => { if (checkedItems[`${p.id}-${s}-${item}`]) n++; }));
-    return { done:n, total: p.checklist.theory.length+p.checklist.programming.length+p.checklist.engineering.length };
-  };
+    return { done: n, total: p.checklist.theory.length + p.checklist.programming.length + p.checklist.engineering.length };
+  }, [checkedItems]);
+
+  const sparklineData = phases.map((_, i) => {
+    const pp = phaseProgress(i);
+    return pp.total > 0 ? Math.round((pp.done / pp.total) * 100) : 0;
+  });
 
   const toggle = (key) => setCheckedItems(prev => ({ ...prev, [key]: !prev[key] }));
 
   const goPhase = (i) => {
     setActivePhase(i); setActiveTab("overview"); setResFilter("all");
-    setSidebarOpen(false); setShowCapstone(false); setLanding(false);
+    setSidebarOpen(false); setView("main");
     if (contentRef.current) contentRef.current.scrollTop = 0;
   };
 
   const allRes = resources ? [
-    ...resources.courses.map(r=>({...r,cat:"Courses"})),
-    ...resources.books.map(r=>({...r,cat:"Books & Texts"})),
-    ...resources.practice.map(r=>({...r,cat:"Practice"})),
-    ...resources.videos.map(r=>({...r,cat:"Videos"})),
+    ...resources.courses.map(r => ({ ...r, cat: "Courses" })),
+    ...resources.books.map(r => ({ ...r, cat: "Books & Texts" })),
+    ...resources.practice.map(r => ({ ...r, cat: "Practice" })),
+    ...resources.videos.map(r => ({ ...r, cat: "Videos" })),
   ] : [];
-
-  const filteredRes = resFilter==="all" ? allRes : allRes.filter(r=>r.cat===resFilter);
+  const filteredRes = resFilter === "all" ? allRes : allRes.filter(r => r.cat === resFilter);
 
   const tabs = [
-    {id:"overview",  label:"Overview",   icon:"◉"},
-    {id:"resources", label:"Resources",  icon:"⬡"},
-    {id:"math",      label:"Math",       icon:"∑"},
-    {id:"systems",   label:"Systems",    icon:"▣"},
-    {id:"projects",  label:"Projects",   icon:"◈"},
-    {id:"mastery",   label:"Mastery",    icon:"✓"},
-    {id:"challenges",label:"Challenges", icon:"★"},
+    { id: "overview",   label: "Overview",   icon: "◉", group: "learn",   hint: "What you'll learn" },
+    { id: "resources",  label: "Resources",  icon: "⬡", group: "learn",   hint: "Free courses & books" },
+    { id: "math",       label: "Math",       icon: "∑", group: "learn",   hint: "Theory & hardware" },
+    { id: "systems",    label: "Systems",    icon: "▣", group: "learn",   hint: "C programming" },
+    { id: "projects",   label: "Build",      icon: "◈", group: "do",      hint: "Projects to build" },
+    { id: "mastery",    label: "Mastery",    icon: "✓", group: "do",      hint: "Track your progress" },
+    { id: "challenges", label: "Challenges", icon: "★", group: "do",      hint: "Graduate problems" },
   ];
 
-  /* ── LANDING PAGE ── */
-  if (landing) {
+  const dm = difficultyMeta[phase.difficulty] || difficultyMeta["Foundations"];
+  const prog = phaseProgress(activePhase);
+  const phasePct = prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : 0;
+
+  /* ─── LANDING ─── */
+  const { displayed: headline, done: headlineDone } = useTypewriter("Build-Everything Computer Science Curriculum", 28, 400);
+
+  if (view === "landing") {
     return (
-      <div style={{
-        minHeight:"100vh", background:"#080808",
-        fontFamily:"'Courier New', Menlo, monospace",
-        display:"flex", flexDirection:"column",
-        alignItems:"center", justifyContent:"center",
-        padding: isMobile ? "32px 20px" : "60px 40px",
-        position:"relative", overflow:"hidden",
-      }}>
-        <style>{`
-          * { box-sizing:border-box; }
-          @keyframes fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
-          @keyframes glow { 0%,100%{opacity:0.4} 50%{opacity:1} }
-          @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        `}</style>
+      <div style={{ minHeight: "100vh", background: "#040404", fontFamily: "'DM Mono', 'Courier New', monospace", color: "#fff", position: "relative", overflow: "hidden" }}>
+        <GlobalStyles />
+        <Overlays />
+        <CursorGlow />
 
-        {/* bg grid */}
-        <div style={{
-          position:"absolute", inset:0, zIndex:0,
-          backgroundImage:"linear-gradient(#1a1a1a 1px,transparent 1px),linear-gradient(90deg,#1a1a1a 1px,transparent 1px)",
-          backgroundSize:"60px 60px", opacity:0.3,
-        }}/>
+        {/* Grid */}
+        <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, backgroundImage: "linear-gradient(#0a0a0a 1px, transparent 1px), linear-gradient(90deg, #0a0a0a 1px, transparent 1px)", backgroundSize: "80px 80px" }} />
 
-        {/* corner accent */}
-        <div style={{
-          position:"absolute", top:"-80px", right:"-80px",
-          width:"300px", height:"300px", borderRadius:"50%",
-          background:"radial-gradient(circle, #C8F54222, transparent 70%)",
-          zIndex:0,
-        }}/>
-        <div style={{
-          position:"absolute", bottom:"-80px", left:"-80px",
-          width:"260px", height:"260px", borderRadius:"50%",
-          background:"radial-gradient(circle, #42C8F522, transparent 70%)",
-          zIndex:0,
-        }}/>
+        {/* Multi-orb bg */}
+        {phases.map((p, i) => (
+          <div key={p.id} style={{
+            position: "fixed", borderRadius: "50%", pointerEvents: "none", zIndex: 0,
+            width: 300 + i * 30, height: 300 + i * 30,
+            left: `${10 + i * 11}%`, top: `${20 + (i % 3) * 25}%`,
+            background: `radial-gradient(circle, ${p.color}08 0%, transparent 70%)`,
+            animation: `float ${4 + i * 0.7}s ease-in-out infinite`,
+            animationDelay: `${i * 0.3}s`,
+          }} />
+        ))}
 
-        <div style={{ position:"relative", zIndex:1, maxWidth:"860px", width:"100%", textAlign:"center" }}>
+        {/* Nav */}
+        <nav style={{
+          position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+          padding: isMobile ? "14px 20px" : "16px 48px",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          borderBottom: "1px solid #0f0f0f", background: "#04040499",
+          backdropFilter: "blur(24px)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ width: "26px", height: "26px", background: "linear-gradient(135deg,#C8F542,#42C8F5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "900", color: "#000" }}>N</div>
+            <span style={{ fontSize: "10px", color: "#888", letterSpacing: "0.22em" }}>NEXUSCODEX</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {!isMobile && ["MIT", "CMU", "Stanford", "Berkeley", "Harvard"].map(s => (
+              <span key={s} style={{ fontSize: "9px", color: "#888", padding: "3px 9px", border: "1px solid #222", letterSpacing: "0.12em" }}>{s}</span>
+            ))}
+            <button onClick={() => setCmdOpen(true)} style={{
+              background: "#0d0d0d", border: "1px solid #222", color: "#555",
+              padding: "6px 12px", cursor: "pointer", fontSize: "9px",
+              letterSpacing: "0.12em", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "6px",
+            }}>
+              <span>⌘K</span><span style={{ color: "#333" }}>SEARCH</span>
+            </button>
+          </div>
+        </nav>
 
-          {/* Author badge */}
-          <div style={{
-            display:"inline-flex", alignItems:"center", gap:"10px",
-            padding:"8px 20px", borderRadius:"100px",
-            background:"#0f0f0f", border:"1px solid #2a2a2a",
-            marginBottom:"36px",
-            animation:"fadeUp 0.5s ease both",
-          }}>
-            <div style={{
-              width:"28px", height:"28px", borderRadius:"50%",
-              background:"linear-gradient(135deg, #C8F542, #42C8F5)",
-              display:"flex", alignItems:"center", justifyContent:"center",
-              fontSize:"13px", fontWeight:"bold", color:"#000",
-            }}>N</div>
-            <span style={{ fontSize:"13px", color:"#888", letterSpacing:"0.06em" }}>by</span>
-            <span style={{ fontSize:"14px", color:"#C8F542", fontWeight:"700", letterSpacing:"0.08em" }}>nexuscodex</span>
+        {cmdOpen && <CommandPalette phases={phases} onPhase={goPhase} onClose={() => { setCmdOpen(false); if (view === "landing") setView("landing"); }} checkedItems={checkedItems} />}
+
+        <TickerTape />
+
+        {/* Hero content */}
+        <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: isMobile ? "110px 24px 80px" : "100px 80px 80px", paddingTop: "120px" }}>
+
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", marginBottom: "40px" }} className="fade-up">
+            <div style={{ width: "28px", height: "1px", background: "#C8F542" }} />
+            <span style={{ fontSize: "9px", color: "#C8F542", letterSpacing: "0.35em" }}>OPEN·SOURCE · CS · EDUCATION</span>
+            <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#C8F542", animation: "pulse-ring 2s ease-out infinite" }} />
           </div>
 
-          {/* Title */}
-          <div style={{ animation:"fadeUp 0.5s 0.1s ease both" }}>
-            <div style={{
-              fontSize: isMobile ? "38px" : "72px",
-              fontWeight:"900", color:"#ffffff",
-              letterSpacing:"-0.04em", lineHeight:"1.05",
-              marginBottom:"8px",
+          {/* Giant typewriter headline */}
+          <div style={{ maxWidth: "960px", marginBottom: "40px" }} className="fade-up stagger-1">
+            <h1 style={{
+              fontFamily: "'DM Serif Display', Georgia, 'Times New Roman', serif",
+              fontSize: isMobile ? "clamp(40px, 11vw, 64px)" : "clamp(60px, 6.5vw, 100px)",
+              fontWeight: "400", lineHeight: "1.02", letterSpacing: "-0.025em", color: "#f0f0f0",
             }}>
-              Build-Everything
-            </div>
-            <div style={{
-              fontSize: isMobile ? "38px" : "72px",
-              fontWeight:"900", letterSpacing:"-0.04em", lineHeight:"1.05",
-              background:"linear-gradient(90deg, #C8F542, #42C8F5, #A742F5)",
-              WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
-              marginBottom:"32px",
-            }}>
-              CS Curriculum
-            </div>
+              {headline.split("Computer Science").map((part, i) => i === 0 ? part : (
+                <span key={i}>
+                  <span style={{ background: "linear-gradient(135deg, #C8F542, #42C8F5 60%, #A742F5)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontStyle: "italic" }}>Computer Science</span>
+                  {part}
+                </span>
+              ))}
+              {!headlineDone && <span style={{ animation: "blink 1s step-end infinite", color: "#C8F542" }}>|</span>}
+            </h1>
           </div>
 
           {/* Subtitle */}
-          <div style={{ animation:"fadeUp 0.5s 0.2s ease both", marginBottom:"48px" }}>
-            <p style={{
-              fontSize: isMobile ? "16px" : "20px",
-              color:"#888", lineHeight:"1.7", margin:"0 auto",
-              maxWidth:"620px",
-            }}>
-              A university-grade, systems-level computer science curriculum.
-              From transistor logic to distributed systems — built entirely from scratch.
-            </p>
+          <p className="fade-up stagger-2" style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: isMobile ? "16px" : "19px", color: "#999", lineHeight: "1.7", maxWidth: "520px", marginBottom: "48px" }}>
+            8 phases. 100% free. MIT · CMU · Stanford · Berkeley.
+            No Coursera paywalls. Build real systems from nothing.
+          </p>
+
+          {/* Live progress sparkline */}
+          {totalChecked > 0 && (
+            <div className="fade-up stagger-2" style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "32px" }}>
+              <Sparkline values={sparklineData} color="#C8F542" width={120} height={24} />
+              <span style={{ fontSize: "10px", color: "#888", letterSpacing: "0.1em" }}>{totalChecked} tasks completed · {globalPct}%</span>
+            </div>
+          )}
+
+          {/* Phase matrix */}
+          <div className="fade-up stagger-3" style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(4,1fr)" : "repeat(8,1fr)", gap: "6px", maxWidth: isMobile ? "280px" : "640px", marginBottom: "48px" }}>
+            {phases.map((p, i) => {
+              const pp = phaseProgress(i);
+              const ppct = pp.total > 0 ? Math.round((pp.done / pp.total) * 100) : 0;
+              return (
+                <button key={p.id} className="phase-btn"
+                  onMouseEnter={() => setHovPhase(i)} onMouseLeave={() => setHovPhase(null)}
+                  onClick={() => goPhase(i)}
+                  style={{
+                    aspectRatio: "1", background: hovPhase === i ? p.darkColor : "#080808",
+                    border: `1px solid ${hovPhase === i ? p.color + "66" : "#181818"}`,
+                    cursor: "pointer", display: "flex", flexDirection: "column",
+                    alignItems: "center", justifyContent: "center", gap: "3px",
+                    transition: "all 0.2s cubic-bezier(0.4,0,0.2,1)", fontFamily: "inherit",
+                    transform: hovPhase === i ? "scale(1.08)" : "scale(1)",
+                    position: "relative", overflow: "hidden",
+                  }}>
+                  {ppct > 0 && (
+                    <div style={{ position: "absolute", bottom: 0, left: 0, height: "2px", width: `${ppct}%`, background: p.color, transition: "width 0.4s" }} />
+                  )}
+                  <span style={{ fontSize: isMobile ? "15px" : "20px", color: hovPhase === i ? p.color : "#2a2a2a", transition: "color 0.2s", fontFamily: "'DM Serif Display', serif" }}>{p.icon}</span>
+                  <span style={{ fontSize: "7px", color: hovPhase === i ? p.color : "#222", letterSpacing: "0.1em" }}>P{p.id}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* University row */}
-          <div style={{
-            display:"flex", flexWrap:"wrap", gap:"10px",
-            justifyContent:"center", marginBottom:"52px",
-            animation:"fadeUp 0.5s 0.3s ease both",
-          }}>
-            {["MIT","Harvard","CMU","Stanford","UC Berkeley","ETH Zürich"].map(u => (
-              <span key={u} style={{
-                padding:"6px 16px", borderRadius:"100px",
-                background:"#111", border:"1px solid #222",
-                fontSize:"12px", color:"#666", letterSpacing:"0.06em",
-              }}>{u}</span>
-            ))}
-          </div>
+          {hovPhase !== null && (
+            <div className="fade-up" style={{ marginBottom: "16px", fontSize: "12px", color: phases[hovPhase].color, letterSpacing: "0.05em", minHeight: "20px" }}>
+              {phases[hovPhase].icon} Phase {phases[hovPhase].id} — {phases[hovPhase].title} · {phases[hovPhase].weeks}
+            </div>
+          )}
 
-          {/* Stats row */}
-          <div style={{
-            display:"grid",
-            gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)",
-            gap:"12px", marginBottom:"52px",
-            animation:"fadeUp 0.5s 0.35s ease both",
-          }}>
-            {[["8","Phases"],["60+","Weeks"],["16+","Projects"],["100+","Resources"]].map(([n,l]) => (
-              <div key={l} style={{
-                background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:"12px",
-                padding:"20px 16px", textAlign:"center",
-              }}>
-                <div style={{ fontSize: isMobile?"28px":"36px", fontWeight:"800", color:"#fff", letterSpacing:"-0.03em" }}>{n}</div>
-                <div style={{ fontSize:"12px", color:"#555", marginTop:"4px", letterSpacing:"0.08em", textTransform:"uppercase" }}>{l}</div>
+          {/* Stats */}
+          <div className="fade-up stagger-4" style={{ display: "flex", gap: isMobile ? "28px" : "52px", marginBottom: "48px", flexWrap: "wrap" }}>
+            {[
+              { n: "8", label: "Phases" },
+              { n: totalPossible + "+", label: "Mastery Tasks" },
+              { n: "100%", label: "Free Courses" },
+              { n: "0", label: "Paywalls" },
+            ].map(({ n, label }) => (
+              <div key={label} style={{ textAlign: "left" }}>
+                <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "36px", color: "#d0d0d0", lineHeight: "1" }}>{n}</div>
+                <div style={{ fontSize: "9px", color: "#333", letterSpacing: "0.2em", textTransform: "uppercase", marginTop: "4px" }}>{label}</div>
               </div>
             ))}
           </div>
 
-          {/* Phase chips */}
-          <div style={{
-            display:"flex", flexWrap:"wrap", gap:"10px", justifyContent:"center",
-            marginBottom:"52px", animation:"fadeUp 0.5s 0.4s ease both",
-          }}>
-            {phases.map(p => (
-              <button key={p.id} onClick={() => goPhase(p.id-1)} style={{
-                display:"flex", alignItems:"center", gap:"8px",
-                padding:"10px 18px", borderRadius:"100px",
-                background:"#0d0d0d", border:`1px solid #1e1e1e`,
-                color:"#888", cursor:"pointer", fontFamily:"inherit",
-                fontSize:"13px", transition:"all 0.18s",
-              }}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor=p.color+"88";e.currentTarget.style.color="#fff";e.currentTarget.style.background="#111";}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor="#1e1e1e";e.currentTarget.style.color="#888";e.currentTarget.style.background="#0d0d0d";}}
-              >
-                <span style={{ fontSize:"14px", color:p.color }}>{p.icon}</span>
-                {p.shortTitle}
-              </button>
-            ))}
-          </div>
-
-          {/* CTA */}
-          <div style={{ animation:"fadeUp 0.5s 0.45s ease both" }}>
+          {/* CTAs */}
+          <div className="fade-up stagger-5" style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button onClick={() => goPhase(0)} style={{
-              padding:"18px 48px", borderRadius:"12px",
-              background:"linear-gradient(135deg,#C8F542,#42C8F5)",
-              border:"none", color:"#000", fontWeight:"800",
-              fontSize:"16px", fontFamily:"inherit", cursor:"pointer",
-              letterSpacing:"0.04em", transition:"all 0.2s",
-              boxShadow:"0 0 40px #C8F54244",
+              padding: "16px 40px", background: "#C8F542", color: "#000",
+              border: "2px solid #C8F542", cursor: "pointer", fontSize: "11px", fontWeight: "900",
+              letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "inherit",
+              transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)", position: "relative", overflow: "hidden",
+              boxShadow: "0 0 0 0 rgba(200,245,66,0)",
             }}
-            onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 48px #C8F54266";}}
-            onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 0 40px #C8F54244";}}>
-              Start Phase 1 →
+              onMouseEnter={e => { e.currentTarget.style.background = "#d4ff44"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 32px rgba(200,245,66,0.3)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "#C8F542"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 0 0 0 rgba(200,245,66,0)"; }}
+            >
+              Begin Phase 01 →
             </button>
+            <button onClick={() => setView("capstone")} style={{
+              padding: "16px 28px", background: "transparent", color: "#666",
+              border: "1px solid #2a2a2a", cursor: "pointer", fontSize: "10px",
+              fontWeight: "600", letterSpacing: "0.15em", textTransform: "uppercase", fontFamily: "inherit",
+              transition: "all 0.2s",
+            }}
+              onMouseEnter={e => { e.currentTarget.style.color = "#bbb"; e.currentTarget.style.borderColor = "#555"; }}
+              onMouseLeave={e => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#2a2a2a"; }}
+            >
+              View Capstones
+            </button>
+            <button onClick={() => setCmdOpen(true)} style={{
+              padding: "14px 18px", background: "transparent", color: "#2a2a2a",
+              border: "1px solid #151515", cursor: "pointer", fontSize: "10px",
+              fontFamily: "inherit", transition: "all 0.2s", letterSpacing: "0.1em",
+            }}
+              onMouseEnter={e => e.currentTarget.style.color = "#444"}
+              onMouseLeave={e => e.currentTarget.style.color = "#2a2a2a"}
+            >⌘K Search</button>
           </div>
+        </div>
 
+        {/* Bottom ticker */}
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 10 }}>
+          <TickerTape />
         </div>
       </div>
     );
   }
 
-  /* ── MAIN APP ── */
-  return (
-    <div style={{
-      minHeight:"100vh", background:"#080808",
-      fontFamily:"'Courier New', Menlo, monospace",
-      color:"#e0e0e0", display:"flex", flexDirection:"column",
-    }}>
-      <style>{`
-        * { box-sizing:border-box; }
-        ::-webkit-scrollbar { width:5px; height:5px; }
-        ::-webkit-scrollbar-track { background:#0a0a0a; }
-        ::-webkit-scrollbar-thumb { background:#222; border-radius:3px; }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-        .phasebtn:hover { background:#111 !important; }
-        .tab-btn:hover { color:#fff !important; }
-        .filter-btn:hover { opacity:1 !important; }
-      `}</style>
-
-      {/* ══ TOP BAR ══ */}
-      <header style={{
-        position:"sticky", top:0, zIndex:200,
-        background:"rgba(8,8,8,0.96)", backdropFilter:"blur(20px)",
-        borderBottom:"1px solid #161616",
-        padding: isMobile ? "12px 16px" : "14px 32px",
-        display:"flex", alignItems:"center", gap:"12px",
-      }}>
-        {isMobile && (
-          <button onClick={() => setSidebarOpen(v=>!v)} style={{
-            background: sidebarOpen ? "#161616" : "transparent",
-            border:"1px solid #222", borderRadius:"6px",
-            color:"#888", cursor:"pointer", padding:"8px 10px",
-            fontSize:"14px", lineHeight:1, flexShrink:0,
-          }}>
-            {sidebarOpen ? "✕" : "☰"}
-          </button>
-        )}
-
-        {/* Logo / title — click to return to landing */}
-        <button onClick={() => setLanding(true)} style={{
-          background:"transparent", border:"none", cursor:"pointer",
-          display:"flex", alignItems:"center", gap:"10px", padding:0, flexShrink:0,
-        }}>
-          <div style={{
-            width:"32px", height:"32px", borderRadius:"8px",
-            background:"linear-gradient(135deg,#C8F542,#42C8F5)",
-            display:"flex", alignItems:"center", justifyContent:"center",
-            fontSize:"15px", fontWeight:"900", color:"#000",
-          }}>N</div>
-          {!isMobile && (
-            <div style={{ textAlign:"left" }}>
-              <div style={{ fontSize:"10px", color:"#444", letterSpacing:"0.15em", textTransform:"uppercase" }}>nexuscodex</div>
-              <div style={{ fontSize:"14px", color:"#fff", fontWeight:"700", letterSpacing:"-0.01em" }}>Build-Everything CS</div>
-            </div>
-          )}
-        </button>
-
-        <div style={{ flex:1 }} />
-
-        {/* Global progress */}
-        <div style={{ display:"flex", alignItems:"center", gap:"10px", flexShrink:0 }}>
-          {!isMobile && <span style={{ fontSize:"11px", color:"#444", letterSpacing:"0.1em" }}>PROGRESS</span>}
-          <div style={{ position:"relative", width: isMobile?"60px":"120px", height:"4px", background:"#161616", borderRadius:"2px" }}>
-            <div style={{
-              position:"absolute", left:0, top:0, height:"100%",
-              width:`${pct}%`, borderRadius:"2px",
-              background:`linear-gradient(90deg, #C8F542, #42C8F5)`,
-              transition:"width 0.5s ease",
-            }}/>
-          </div>
-          <span style={{ fontSize:"13px", color:"#C8F542", fontWeight:"700", minWidth:"36px" }}>{pct}%</span>
+  /* ─── CAPSTONE ─── */
+  if (view === "capstone") {
+    return (
+      <div style={{ minHeight: "100vh", background: "#040404", fontFamily: "'DM Mono', 'Courier New', monospace", color: "#fff" }}>
+        <GlobalStyles />
+        <Overlays />
+        <CursorGlow />
+        <TickerTape />
+        <div style={{ padding: isMobile ? "20px" : "24px 60px", borderBottom: "1px solid #0e0e0e", display: "flex", alignItems: "center", gap: "20px", background: "#040404", position: "sticky", top: 0, zIndex: 10 }}>
+          <button onClick={() => setView("landing")} style={{ background: "none", border: "1px solid #1a1a1a", color: "#444", padding: "7px 14px", cursor: "pointer", fontSize: "9px", letterSpacing: "0.15em" }}>← BACK</button>
+          <span style={{ fontSize: "9px", color: "#666", letterSpacing: "0.3em" }}>CAPSTONE PROJECTS</span>
         </div>
-
-        <button onClick={() => { setShowCapstone(v=>!v); setSidebarOpen(false); }} style={{
-          background: showCapstone ? "#C8F542" : "transparent",
-          border:`1px solid ${showCapstone?"#C8F542":"#222"}`,
-          borderRadius:"8px", color: showCapstone?"#000":"#666",
-          cursor:"pointer", padding: isMobile?"6px 10px":"8px 16px",
-          fontSize:"11px", letterSpacing:"0.1em", textTransform:"uppercase",
-          fontFamily:"inherit", fontWeight:"700", flexShrink:0, transition:"all 0.18s",
-        }}>
-          {isMobile ? "⬟" : "Capstone"}
-        </button>
-      </header>
-
-      <div style={{ flex:1, display:"flex", overflow:"hidden", position:"relative" }}>
-
-        {/* Mobile overlay */}
-        {isMobile && sidebarOpen && (
-          <div onClick={() => setSidebarOpen(false)} style={{
-            position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", zIndex:150,
-          }}/>
-        )}
-
-        {/* ══ SIDEBAR ══ */}
-        <aside style={{
-          width: isMobile?"290px" : isTablet?"210px" : "270px",
-          flexShrink:0, borderRight:"1px solid #111",
-          overflowY:"auto", background:"#070707",
-          ...(isMobile ? {
-            position:"fixed", top:0, left:0, bottom:0, zIndex:160, paddingTop:"68px",
-            transform: sidebarOpen?"translateX(0)":"translateX(-100%)",
-            transition:"transform 0.22s cubic-bezier(.4,0,.2,1)",
-          } : {}),
-        }}>
-          <div style={{ padding:"16px 20px 10px", fontSize:"10px", color:"#2e2e2e", letterSpacing:"0.18em", textTransform:"uppercase" }}>
-            8 Phases · ~60 weeks total
-          </div>
-
-          {phases.map((p,i) => {
-            const { done, total } = phaseProgress(i);
-            const active = activePhase===i && !showCapstone;
-            return (
-              <button key={p.id} className="phasebtn" onClick={() => goPhase(i)} style={{
-                display:"flex", alignItems:"center", gap:"12px",
-                width:"100%", padding:"12px 18px",
-                background: active?"#111":"transparent",
-                border:"none", borderLeft:`3px solid ${active ? p.color : "transparent"}`,
-                cursor:"pointer", textAlign:"left", transition:"all 0.12s",
-              }}>
-                <div style={{
-                  width:"36px", height:"36px", borderRadius:"8px", flexShrink:0,
-                  background: active ? p.color : "#111",
-                  border:`1px solid ${active ? p.color : "#1e1e1e"}`,
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  fontSize:"16px", color: active?"#000":p.color, fontWeight:"bold",
-                  transition:"all 0.12s",
-                }}>{p.icon}</div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"3px" }}>
-                    <span style={{ fontSize:"10px", color: active?"#666":"#2e2e2e", letterSpacing:"0.08em" }}>
-                      {p.difficulty.toUpperCase()}
-                    </span>
-                    <span style={{ fontSize:"10px", color: done>0 ? p.color : "#2e2e2e" }}>{done}/{total}</span>
-                  </div>
-                  <div style={{
-                    fontSize:"13px", color: active?"#fff":"#666",
-                    fontWeight: active?"700":"400",
-                    whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
-                  }}>{p.shortTitle}</div>
-                  <div style={{ marginTop:"5px", height:"2px", background:"#161616", borderRadius:"1px" }}>
-                    <div style={{ height:"100%", width:`${(done/total)*100}%`, background:p.color, borderRadius:"1px", transition:"width 0.4s" }}/>
+        <div style={{ padding: isMobile ? "32px 24px 60px" : "56px 60px 80px" }}>
+          <h2 className="fade-up" style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: isMobile ? "36px" : "60px", fontWeight: "400", letterSpacing: "-0.02em", marginBottom: "8px" }}>Final Boss Projects</h2>
+          <p className="fade-up stagger-1" style={{ color: "#888", fontSize: "16px", fontFamily: "'DM Serif Display', serif", marginBottom: "52px" }}>Choose one capstone to integrate everything from all 8 phases.</p>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: "2px" }}>
+            {capstoneProjects.map((p, i) => (
+              <div key={i} className="fade-up" style={{ animationDelay: `${i * 60}ms`, padding: "28px 32px", background: "#070707", borderTop: `2px solid ${p.color}44`, transition: "all 0.2s", position: "relative", overflow: "hidden" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#0c0c0c"; e.currentTarget.querySelector(".cpx-glow").style.opacity = "1"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#070707"; e.currentTarget.querySelector(".cpx-glow").style.opacity = "0"; }}
+              >
+                <div className="cpx-glow" style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: p.color, opacity: 0, transition: "opacity 0.2s" }} />
+                <div style={{ display: "flex", gap: "16px" }}>
+                  <div style={{ fontSize: "22px", color: p.color, flexShrink: 0, fontFamily: "'DM Serif Display', serif", width: "32px" }}>{p.icon}</div>
+                  <div>
+                    <div style={{ fontSize: "15px", color: "#e0e0e0", fontWeight: "500", marginBottom: "7px", fontFamily: "'DM Serif Display', serif" }}>{p.name}</div>
+                    <div style={{ fontSize: "13px", color: "#888", lineHeight: "1.65", fontFamily: "'DM Serif Display', serif" }}>{p.desc}</div>
                   </div>
                 </div>
-              </button>
-            );
-          })}
-
-          {/* Sidebar footer — author */}
-          <div style={{ margin:"16px 18px", padding:"16px", background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:"10px" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"12px" }}>
-              <div style={{
-                width:"32px", height:"32px", borderRadius:"50%",
-                background:"linear-gradient(135deg,#C8F542,#42C8F5)",
-                display:"flex", alignItems:"center", justifyContent:"center",
-                fontSize:"14px", fontWeight:"900", color:"#000",
-              }}>N</div>
-              <div>
-                <div style={{ fontSize:"13px", color:"#C8F542", fontWeight:"700" }}>nexuscodex</div>
-                <div style={{ fontSize:"10px", color:"#444" }}>Curriculum Author</div>
-              </div>
-            </div>
-            {[["Completed",`${totalChecked}/${totalPossible}`,"#C8F542"],
-              ["Phases",`${phases.filter((_,i)=>{const{done,total}=phaseProgress(i);return done===total&&total>0;}).length}/8`,"#888"],
-              ["Mastery",`${pct}%`, pct>50?"#C8F542":"#888"],
-            ].map(([label,val,color]) => (
-              <div key={label} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", borderBottom:"1px solid #131313" }}>
-                <span style={{ fontSize:"11px", color:"#444" }}>{label}</span>
-                <span style={{ fontSize:"11px", color, fontWeight:"600" }}>{val}</span>
               </div>
             ))}
           </div>
-        </aside>
+          <div style={{ marginTop: "48px" }}>
+            <button onClick={() => goPhase(0)} style={{ padding: "14px 32px", background: "#C8F542", color: "#000", border: "none", cursor: "pointer", fontSize: "10px", fontWeight: "800", letterSpacing: "0.18em", fontFamily: "inherit" }}>Begin Phase 01 →</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-        {/* ══ MAIN ══ */}
-        <main ref={contentRef} style={{ flex:1, overflowY:"auto", minWidth:0 }}>
+  /* ─── MAIN CURRICULUM ─── */
+  return (
+    <div style={{ display: "flex", height: "100vh", background: "#040404", fontFamily: "'DM Mono', 'Courier New', monospace", color: "#fff", overflow: "hidden" }}>
+      <GlobalStyles />
+      <Overlays />
+      <CursorGlow />
 
-          {/* ── CAPSTONE ── */}
-          {showCapstone && (
-            <div style={{ animation:"fadeUp 0.25s ease", padding: isMobile?"24px 18px":"40px 56px", maxWidth:"1200px" }}>
-              <div style={{ marginBottom:"36px" }}>
-                <div style={{ fontSize:"11px", color:"#444", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:"8px" }}>
-                  nexuscodex · Final Milestone
-                </div>
-                <h1 style={{ fontSize: isMobile?"26px":"40px", fontWeight:"900", color:"#fff", letterSpacing:"-0.03em", margin:"0 0 12px" }}>
-                  Capstone Systems Projects
-                </h1>
-                <p style={{ fontSize:"16px", color:"#666", lineHeight:"1.7", maxWidth:"600px", margin:0 }}>
-                  After completing all 8 phases, you will undertake a large-scale engineering project spanning multiple domains. These are not tutorials — these are systems built from scratch.
-                </p>
-              </div>
+      {cmdOpen && <CommandPalette phases={phases} onPhase={goPhase} onClose={() => setCmdOpen(false)} checkedItems={checkedItems} />}
 
-              <div style={{ display:"grid", gridTemplateColumns: isMobile?"1fr":"1fr 1fr", gap:"18px", marginBottom:"44px" }}>
-                {capstoneProjects.map(c => (
-                  <div key={c.name} style={{
-                    background:"#0d0d0d", border:"1px solid #1a1a1a",
-                    borderTop:`3px solid ${c.color}`, borderRadius:"12px", padding:"22px 24px",
-                    transition:"transform 0.18s",
-                  }}
-                  onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"}
-                  onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}
-                  >
-                    <div style={{ display:"flex", gap:"14px", alignItems:"flex-start" }}>
-                      <div style={{
-                        width:"44px", height:"44px", borderRadius:"10px", flexShrink:0,
-                        background:c.color+"18", border:`1px solid ${c.color}30`,
-                        display:"flex", alignItems:"center", justifyContent:"center",
-                        fontSize:"20px", color:c.color,
-                      }}>{c.icon}</div>
-                      <div>
-                        <div style={{ fontSize:"17px", color:"#fff", fontWeight:"700", marginBottom:"6px" }}>{c.name}</div>
-                        <div style={{ fontSize:"14px", color:"#666", lineHeight:"1.6" }}>{c.desc}</div>
-                      </div>
+      {/* SIDEBAR */}
+      <aside style={{
+        width: isMobile ? (sidebarOpen ? "100vw" : "0") : "240px",
+        minWidth: isMobile ? (sidebarOpen ? "100vw" : "0") : "240px",
+        height: "100vh", background: "#030303",
+        borderRight: "1px solid #0e0e0e",
+        overflow: "hidden", transition: "all 0.3s cubic-bezier(0.4,0,0.2,1)",
+        position: isMobile ? "fixed" : "relative", zIndex: isMobile ? 200 : 1,
+        flexShrink: 0, display: "flex", flexDirection: "column",
+      }}>
+        {/* Sidebar header */}
+        <div style={{ padding: "18px 18px 14px", borderBottom: "1px solid #0c0c0c", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ width: "22px", height: "22px", background: "linear-gradient(135deg,#C8F542,#42C8F5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", fontWeight: "900", color: "#000" }}>N</div>
+            <span style={{ fontSize: "9px", color: "#888", letterSpacing: "0.22em" }}>NEXUSCODEX</span>
+          </div>
+          {isMobile && <button onClick={() => setSidebarOpen(false)} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: "18px" }}>×</button>}
+        </div>
+
+        {/* Sidebar sub-tabs */}
+        <div style={{ display: "flex", borderBottom: "1px solid #0c0c0c", flexShrink: 0 }}>
+          {["nav", "timeline"].map(t => (
+            <button key={t} onClick={() => setSidebarTab(t)} style={{
+              flex: 1, padding: "9px 0", background: "none", border: "none",
+              borderBottom: `1px solid ${sidebarTab === t ? "#C8F54266" : "transparent"}`,
+              color: sidebarTab === t ? "#C8F542" : "#666",
+              cursor: "pointer", fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", fontFamily: "inherit",
+            }}>{t}</button>
+          ))}
+        </div>
+
+        {/* Global progress bar */}
+        <div style={{ padding: "12px 18px", borderBottom: "1px solid #0c0c0c", flexShrink: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+            <span style={{ fontSize: "8px", color: "#555", letterSpacing: "0.18em" }}>
+              {globalPct === 0 ? "BEGIN YOUR JOURNEY" : globalPct < 25 ? "JUST GETTING STARTED" : globalPct < 50 ? "BUILDING MOMENTUM" : globalPct < 75 ? "HALFWAY THERE" : globalPct < 100 ? "ALMOST ELITE" : "CURRICULUM COMPLETE"}
+            </span>
+            <span style={{ fontSize: "9px", color: "#C8F542", fontFamily: "'DM Mono', monospace", fontWeight: "600" }}>{globalPct}%</span>
+          </div>
+          <div style={{ height: "2px", background: "#111", position: "relative" }}>
+            <div style={{ height: "100%", width: `${globalPct}%`, background: "linear-gradient(90deg,#C8F542,#42C8F5,#A742F5,#F55442)", transition: "width 0.6s", position: "relative" }}>
+              {globalPct > 2 && <div style={{ position: "absolute", right: 0, top: "-2px", width: "6px", height: "6px", borderRadius: "50%", background: "#fff", boxShadow: "0 0 6px #fff" }} />}
+            </div>
+          </div>
+          <div style={{ marginTop: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Sparkline values={sparklineData} color="#C8F54288" width={100} height={16} />
+            <span style={{ fontSize: "9px", color: "#777", fontFamily: "'DM Mono', monospace" }}>{totalChecked}<span style={{color:"#333"}}>/{totalPossible}</span></span>
+          </div>
+        </div>
+
+        {/* NAV or TIMELINE */}
+        <div style={{ flex: 1, overflowY: "auto", padding: sidebarTab === "timeline" ? "16px 12px" : "6px 0" }}>
+          {sidebarTab === "nav" ? phases.map((p, i) => {
+            const pp = phaseProgress(i);
+            const ppct = pp.total > 0 ? Math.round((pp.done / pp.total) * 100) : 0;
+            const active = i === activePhase;
+            return (
+              <button key={p.id} onClick={() => goPhase(i)} style={{
+                width: "100%", background: active ? p.darkColor : "transparent",
+                border: "none", borderLeft: `2px solid ${active ? p.color : "transparent"}`,
+                padding: "11px 16px 11px 14px", cursor: "pointer", textAlign: "left",
+                fontFamily: "inherit", transition: "all 0.15s",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ fontSize: "13px", color: active ? p.color : "#222", flexShrink: 0, fontFamily: "'DM Serif Display', serif" }}>{p.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "11px", color: active ? "#fff" : "#888", fontWeight: active ? "700" : "400", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <span style={{ color: active ? p.color : "#555", marginRight: "4px" }}>P{String(p.id).padStart(2,"0")}</span>{p.shortTitle}
+                    </div>
+                    <div style={{ marginTop: "3px", height: "1px", background: "#111" }}>
+                      <div style={{ height: "100%", width: `${ppct}%`, background: p.color, transition: "width 0.4s" }} />
                     </div>
                   </div>
-                ))}
-              </div>
-
-              <div style={{ background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:"12px", padding:"28px 32px" }}>
-                <SectionLabel color="#C8F542">Graduate Capabilities</SectionLabel>
-                <div style={{ display:"grid", gridTemplateColumns: isMobile?"1fr":"1fr 1fr", gap:"0" }}>
-                  {[
-                    "Read operating system source code fluently",
-                    "Implement advanced algorithms from research papers",
-                    "Understand memory at the hardware level",
-                    "Build scalable distributed systems",
-                    "Understand compilers from first principles",
-                    "Write efficient low-level software in C",
-                    "Reason mathematically about computation",
-                    "Design professional software architecture",
-                    "Debug complex systems-level problems",
-                    "Trace computation from transistor to distributed network",
-                  ].map(cap => (
-                    <div key={cap} style={{ display:"flex", gap:"12px", alignItems:"flex-start", padding:"10px 0", borderBottom:"1px solid #131313" }}>
-                      <span style={{ color:"#C8F542", flexShrink:0, marginTop:"3px" }}>✓</span>
-                      <span style={{ fontSize:"15px", color:"#999" }}>{cap}</span>
-                    </div>
-                  ))}
+                  <ProgressRing pct={ppct} size={22} stroke={2} color={p.color} />
                 </div>
+              </button>
+            );
+          }) : (
+            <RoadmapTimeline phases={phases} activePhase={activePhase} onPhase={goPhase} />
+          )}
+        </div>
+
+        {/* Sidebar footer */}
+        <div style={{ padding: "12px 14px", borderTop: "1px solid #0c0c0c", flexShrink: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
+          <button onClick={() => setCmdOpen(true)} style={{
+            width: "100%", padding: "9px", background: "#0a0a0a", border: "1px solid #181818",
+            color: "#333", cursor: "pointer", fontSize: "8px", letterSpacing: "0.18em",
+            textTransform: "uppercase", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+          }}>
+            <span style={{ color: "#555" }}>⌘K</span> Command Palette
+          </button>
+          <button onClick={() => setView("capstone")} style={{ width: "100%", padding: "8px", background: "none", border: "1px solid #1e1e1e", color: "#555", cursor: "pointer", fontSize: "8px", letterSpacing: "0.15em", fontFamily: "inherit", transition: "all 0.15s" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#444"; e.currentTarget.style.color = "#888"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#1e1e1e"; e.currentTarget.style.color = "#555"; }}
+          >⬡ Capstone Projects</button>
+          <button onClick={() => setView("landing")} style={{ width: "100%", padding: "7px", background: "none", border: "none", color: "#333", cursor: "pointer", fontSize: "8px", letterSpacing: "0.15em", fontFamily: "inherit", transition: "color 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.color = "#666"}
+            onMouseLeave={e => e.currentTarget.style.color = "#333"}
+          >← Back to Home</button>
+        </div>
+      </aside>
+
+      {/* MAIN */}
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+
+        {/* Top bar */}
+        <div style={{ padding: isMobile ? "12px 14px" : "14px 28px", borderBottom: "1px solid #0d0d0d", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#040404", flexShrink: 0, gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
+            {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ background: "none", border: "1px solid #1a1a1a", color: "#555", cursor: "pointer", padding: "5px 9px", fontSize: "12px" }}>☰</button>}
+
+            {/* Phase dot */}
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              <div style={{ width: "34px", height: "34px", background: phase.darkColor, border: `1px solid ${phase.color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", color: phase.color, fontFamily: "'DM Serif Display', serif" }}>{phase.icon}</div>
+              <div style={{ position: "absolute", inset: "-4px", borderRadius: "50%", border: `1px solid ${phase.color}22`, animation: "pulse-ring 3s ease-out infinite", pointerEvents: "none" }} />
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: isMobile ? "12px" : "13px", fontWeight: "500", color: "#ddd", lineHeight: "1.2", fontFamily: "'DM Serif Display', serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {isMobile ? phase.shortTitle : phase.title}
+              </div>
+              <div style={{ fontSize: "9px", color: "#777", marginTop: "2px", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ color: "#555" }}>Phase {phase.id}/{phases.length}</span>
+                <span style={{ color: "#333" }}>·</span>
+                <span style={{ color: phase.color, opacity: 0.75 }}>{phase.difficulty}</span>
+                <span style={{ color: "#333" }}>·</span>
+                <span style={{ color: "#555" }}>{phase.weeks}</span>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* ── PHASE VIEW ── */}
-          {!showCapstone && (
-            <div style={{ animation:"fadeUp 0.2s ease" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+            {/* Prev/next arrows */}
+            <button onClick={() => activePhase > 0 && goPhase(activePhase - 1)} disabled={activePhase === 0}
+              style={{ background: "none", border: "1px solid #1e1e1e", color: activePhase === 0 ? "#2a2a2a" : "#777", padding: "6px 12px", cursor: activePhase === 0 ? "default" : "pointer", fontSize: "13px", fontFamily: "inherit", transition: "all 0.15s", borderRadius: "3px" }}
+              onMouseEnter={e => { if (activePhase > 0) { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.borderColor = "#444"; }}}
+              onMouseLeave={e => { e.currentTarget.style.color = activePhase === 0 ? "#2a2a2a" : "#777"; e.currentTarget.style.borderColor = "#1e1e1e"; }}
+              title="Previous phase"
+            >‹</button>
+            <button onClick={() => activePhase < phases.length - 1 && goPhase(activePhase + 1)} disabled={activePhase === phases.length - 1}
+              style={{ background: "none", border: "1px solid #1e1e1e", color: activePhase === phases.length - 1 ? "#2a2a2a" : "#777", padding: "6px 12px", cursor: activePhase === phases.length - 1 ? "default" : "pointer", fontSize: "13px", fontFamily: "inherit", transition: "all 0.15s", borderRadius: "3px" }}
+              onMouseEnter={e => { if (activePhase < phases.length - 1) { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.borderColor = "#444"; }}}
+              onMouseLeave={e => { e.currentTarget.style.color = activePhase === phases.length - 1 ? "#2a2a2a" : "#777"; e.currentTarget.style.borderColor = "#1e1e1e"; }}
+              title="Next phase"
+            >›</button>
 
-              {/* Phase banner */}
-              <div style={{
-                padding: isMobile?"20px 18px 0":"32px 56px 0",
-                background:"#090909", borderBottom:"1px solid #111",
-              }}>
-                {/* Author line */}
-                <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"16px" }}>
-                  <div style={{
-                    width:"22px", height:"22px", borderRadius:"50%",
-                    background:"linear-gradient(135deg,#C8F542,#42C8F5)",
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize:"11px", fontWeight:"900", color:"#000",
-                  }}>N</div>
-                  <span style={{ fontSize:"11px", color:"#444" }}>nexuscodex</span>
-                  <span style={{ fontSize:"11px", color:"#2a2a2a" }}>·</span>
-                  <span style={{ fontSize:"11px", color:"#2a2a2a" }}>Build-Everything CS Curriculum</span>
-                </div>
+            <span style={{ fontSize: "8px", padding: "3px 9px", background: dm.bg, color: dm.color, border: `1px solid ${dm.color}33`, letterSpacing: "0.12em", fontWeight: "600", textTransform: "uppercase" }}>{phase.difficulty}</span>
+            <ProgressRing pct={phasePct} size={32} stroke={2} color={phase.color} label={phasePct} />
+          </div>
+        </div>
 
-                <div style={{ display:"flex", alignItems:"flex-start", gap:"16px", marginBottom:"18px" }}>
-                  <div style={{
-                    width: isMobile?"52px":"64px", height: isMobile?"52px":"64px",
-                    borderRadius:"14px", background:phase.color, flexShrink:0,
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize: isMobile?"22px":"28px", color:"#000", fontWeight:"900",
-                    boxShadow:`0 0 32px ${phase.color}44`,
-                  }}>{phase.icon}</div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:"10px", flexWrap:"wrap", marginBottom:"6px" }}>
-                      <span style={{
-                        fontSize:"11px", padding:"3px 10px", borderRadius:"100px",
-                        background: difficultyMeta[phase.difficulty].bg,
-                        color: difficultyMeta[phase.difficulty].color,
-                        border:`1px solid ${difficultyMeta[phase.difficulty].color}33`,
-                        fontWeight:"700", letterSpacing:"0.08em",
-                      }}>{phase.difficulty.toUpperCase()}</span>
-                      <span style={{ fontSize:"12px", color:"#333" }}>Phase {phase.id} of 8</span>
-                      <span style={{ fontSize:"12px", color:"#333" }}>·</span>
-                      <span style={{ fontSize:"12px", color:"#333" }}>{phase.weeks}</span>
-                    </div>
-                    <h1 style={{
-                      fontSize: isMobile?"20px":"30px", fontWeight:"800", color:"#fff",
-                      letterSpacing:"-0.03em", lineHeight:"1.2", margin:"0 0 6px",
-                    }}>
-                      {isMobile ? phase.shortTitle : phase.title}
-                    </h1>
-                    <p style={{ fontSize:"15px", color:phase.color, fontStyle:"italic", margin:0, opacity:0.9 }}>
-                      "{phase.tagline}"
-                    </p>
-                  </div>
-                </div>
+        {/* Tab bar — grouped for cognitive chunking (Miller's Law) */}
+        <div style={{ display: "flex", padding: "0 14px", borderBottom: "1px solid #0d0d0d", background: "#030303", flexShrink: 0, overflowX: "auto", alignItems: "stretch" }}>
+          {tabs.map((t, i) => {
+            const isActive = activeTab === t.id;
+            const prevGroup = i > 0 ? tabs[i-1].group : t.group;
+            const showDivider = i > 0 && prevGroup !== t.group;
+            return (
+              <div key={t.id} style={{ display: "flex", alignItems: "stretch" }}>
+                {showDivider && (
+                  <div style={{ width: "1px", background: "#1a1a1a", margin: "8px 4px", flexShrink: 0 }} />
+                )}
+                <button
+                  onClick={() => setActiveTab(t.id)}
+                  title={t.hint}
+                  style={{
+                    padding: "11px 13px", background: "none", border: "none",
+                    borderBottom: `2px solid ${isActive ? phase.color : "transparent"}`,
+                    color: isActive ? phase.color : "#555",
+                    cursor: "pointer", fontSize: "9px", fontFamily: "inherit",
+                    letterSpacing: "0.12em", textTransform: "uppercase",
+                    transition: "all 0.18s", whiteSpace: "nowrap",
+                    fontWeight: isActive ? "700" : "400",
+                    opacity: isActive ? 1 : 0.65,
+                    position: "relative",
+                  }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.color = "#aaa"; e.currentTarget.style.opacity = "1"; }}}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.color = "#555"; e.currentTarget.style.opacity = "0.65"; }}}
+                >
+                  {t.icon} {t.label}
+                  {t.id === "mastery" && prog.done > 0 && !isActive && (
+                    <span style={{ position: "absolute", top: "7px", right: "4px", width: "5px", height: "5px", borderRadius: "50%", background: phase.color, boxShadow: `0 0 6px ${phase.color}` }} />
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
 
-                {/* Phase progress bar */}
-                <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"20px" }}>
-                  <div style={{ flex:1, height:"4px", background:"#141414", borderRadius:"2px" }}>
-                    <div style={{
-                      height:"100%", borderRadius:"2px",
-                      width:`${(phaseProgress(activePhase).done / phaseProgress(activePhase).total)*100}%`,
-                      background:`linear-gradient(90deg,${phase.color},${phase.color}88)`,
-                      transition:"width 0.5s ease",
-                    }}/>
-                  </div>
-                  <span style={{ fontSize:"12px", color:phase.color, fontWeight:"600", flexShrink:0 }}>
-                    {phaseProgress(activePhase).done} / {phaseProgress(activePhase).total} tasks
-                  </span>
-                </div>
+        {/* Tab Content */}
+        <div ref={contentRef} key={`${activePhase}-${activeTab}`} style={{ flex: 1, overflowY: "auto", padding: isMobile ? "22px 16px" : "28px 36px" }}>
 
-                {/* Tabs */}
-                <div style={{ display:"flex", overflowX:"auto", gap:0, scrollbarWidth:"none" }}>
-                  {tabs.map(t => (
-                    <button key={t.id} className="tab-btn" onClick={() => setActiveTab(t.id)} style={{
-                      background:"transparent", border:"none", cursor:"pointer",
-                      borderBottom: activeTab===t.id ? `3px solid ${phase.color}` : "3px solid transparent",
-                      color: activeTab===t.id ? phase.color : "#555",
-                      padding: isMobile?"10px 12px":"11px 20px",
-                      fontSize: isMobile?"10px":"13px",
-                      letterSpacing:"0.08em", textTransform:"uppercase",
-                      fontFamily:"inherit", fontWeight: activeTab===t.id?"700":"400",
-                      transition:"color 0.12s", whiteSpace:"nowrap",
-                      position:"relative",
-                    }}>
-                      {isMobile ? t.icon : `${t.label}`}
-                      {t.id==="resources" && (
-                        <span style={{
-                          position:"absolute", top:"8px", right: isMobile?"2px":"10px",
-                          width:"6px", height:"6px", borderRadius:"50%", background:phase.color,
-                        }}/>
-                      )}
-                    </button>
-                  ))}
+          {/* ── OVERVIEW ── */}
+          {activeTab === "overview" && (
+            <div>
+              {/* Hero quote */}
+              <div className="fade-up" style={{ padding: "22px 26px", marginBottom: "28px", background: phase.darkColor, borderLeft: `3px solid ${phase.color}`, position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: "50%", right: "20px", transform: "translateY(-50%)", fontSize: "80px", color: phase.color, opacity: 0.05, fontFamily: "'DM Serif Display', serif", lineHeight: 1, pointerEvents: "none", userSelect: "none" }}>{phase.icon}</div>
+                <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: isMobile ? "20px" : "26px", color: phase.color, fontStyle: "italic", lineHeight: "1.4", letterSpacing: "-0.01em" }}>"{phase.tagline}"</div>
+                <div style={{ marginTop: "10px", display: "flex", gap: "10px", alignItems: "center" }}>
+                  <span style={{ fontSize: "10px", color: "#888", letterSpacing: "0.1em" }}>{phase.weeks}</span>
+                  <span style={{ color: "#333" }}>·</span>
+                  <span style={{ fontSize: "9px", color: dm.color, letterSpacing: "0.12em" }}>{phase.difficulty.toUpperCase()}</span>
+                  <span style={{ color: "#1e1e1e" }}>·</span>
+                  <span style={{ fontSize: "9px", color: "#333" }}>{prog.done}/{prog.total} COMPLETED</span>
                 </div>
               </div>
 
-              {/* Tab content */}
-              <div style={{ padding: isMobile?"24px 18px":"36px 56px", maxWidth:"1200px" }}>
-
-                {/* ── OVERVIEW ── */}
-                {activeTab==="overview" && (
-                  <div style={{ animation:"fadeUp 0.18s ease" }}>
-                    {/* Stats */}
-                    <div style={{ display:"grid", gridTemplateColumns: isMobile?"1fr 1fr":"repeat(4,1fr)", gap:"12px", marginBottom:"32px" }}>
-                      {[
-                        ["Math Topics", phase.math.length, "∑", "Theory"],
-                        ["HW Topics",   phase.hardware.length, "⚙", "Hardware"],
-                        ["C Topics",    phase.cpp.length, "C", "Code"],
-                        ["Resources",   allRes.length, "⬡", "Free Links"],
-                      ].map(([label,val,icon,sub]) => (
-                        <div key={label} style={{
-                          background:"#0d0d0d", border:"1px solid #1a1a1a",
-                          borderTop:`3px solid ${phase.color}33`, borderRadius:"10px", padding:"18px 20px",
-                        }}>
-                          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"6px" }}>
-                            <span style={{ fontSize:"11px", color:"#444", textTransform:"uppercase", letterSpacing:"0.1em" }}>{label}</span>
-                            <span style={{ fontSize:"18px", color:"#1e1e1e" }}>{icon}</span>
-                          </div>
-                          <div style={{ fontSize:"32px", fontWeight:"800", color:phase.color, lineHeight:1 }}>{val}</div>
-                          <div style={{ fontSize:"11px", color:"#333", marginTop:"4px" }}>{sub}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <SectionLabel color={phase.color}>8-Step Pedagogical Framework</SectionLabel>
-                    <div style={{
-                      display:"grid", gridTemplateColumns: isMobile?"1fr 1fr":"repeat(4,1fr)",
-                      gap:"1px", background:"#141414", border:"1px solid #141414",
-                      borderRadius:"10px", overflow:"hidden", marginBottom:"32px",
+              {/* All-phase mini progress bar strip */}
+              <div className="fade-up stagger-1" style={{ display: "flex", gap: "4px", marginBottom: "28px" }}>
+                {phases.map((p, i) => {
+                  const pp = phaseProgress(i);
+                  const ppct = pp.total > 0 ? Math.round((pp.done / pp.total) * 100) : 0;
+                  return (
+                    <button key={p.id} onClick={() => goPhase(i)} style={{
+                      flex: 1, height: "5px", background: "#111", border: "none", cursor: "pointer",
+                      position: "relative", padding: 0,
                     }}>
-                      {[
-                        ["01","Intuitive",   "Plain-language first principles"],
-                        ["02","Formal",      "Mathematical derivations"],
-                        ["03","Hardware",    "CPU & memory interpretation"],
-                        ["04","C Code",      "Compilable implementations"],
-                        ["05","Execution",   "Line-by-line traces"],
-                        ["06","Complexity",  "Formal O/Θ/Ω analysis"],
-                        ["07","Debugging",   "Error methodology"],
-                        ["08","Optimize",    "Performance engineering"],
-                      ].map(([num,title,desc]) => (
-                        <div key={num} style={{ background:"#0d0d0d", padding:"16px 18px" }}>
-                          <div style={{ fontSize:"10px", color:phase.color, opacity:0.6, marginBottom:"4px", fontWeight:"700" }}>STEP {num}</div>
-                          <div style={{ fontSize:"14px", color:"#e0e0e0", fontWeight:"700", marginBottom:"5px" }}>{title}</div>
-                          <div style={{ fontSize:"12px", color:"#444", lineHeight:"1.5" }}>{desc}</div>
-                        </div>
-                      ))}
-                    </div>
+                      <div style={{ height: "100%", width: `${ppct}%`, background: p.color, transition: "width 0.5s" }} />
+                      {i === activePhase && <div style={{ position: "absolute", inset: "-1px", border: `1px solid ${p.color}88` }} />}
+                    </button>
+                  );
+                })}
+              </div>
 
-                    <SectionLabel color={phase.color}>Teaching Philosophy</SectionLabel>
-                    <div style={{ marginBottom:"32px" }}>
-                      {phase.pedagogy.map((note,i) => (
-                        <div key={i} style={{
-                          display:"flex", gap:"14px", alignItems:"flex-start",
-                          padding:"14px 18px", marginBottom:"8px",
-                          background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:"8px",
-                        }}>
-                          <div style={{ width:"6px", height:"6px", borderRadius:"50%", background:phase.color, flexShrink:0, marginTop:"10px" }}/>
-                          <span style={{ fontSize:"15px", color:"#bbb", lineHeight:"1.7" }}>{note}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <SectionLabel color={phase.color}>Jump to Phase</SectionLabel>
-                    <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
-                      {phases.map((p,i) => (
-                        <button key={p.id} onClick={() => goPhase(i)} style={{
-                          display:"flex", alignItems:"center", gap:"8px",
-                          padding:"8px 16px", borderRadius:"8px",
-                          background: i===activePhase ? phase.color : "#0d0d0d",
-                          border:`1px solid ${i===activePhase ? phase.color : "#1e1e1e"}`,
-                          color: i===activePhase ? "#000" : "#777",
-                          fontSize:"13px", fontFamily:"inherit", cursor:"pointer", transition:"all 0.12s",
-                        }}>
-                          <span>{p.icon}</span> {p.shortTitle}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* ── RESOURCES ── */}
-                {activeTab==="resources" && (
-                  <div style={{ animation:"fadeUp 0.18s ease" }}>
-                    <div style={{ marginBottom:"24px" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"8px" }}>
-                        <h2 style={{ fontSize: isMobile?"20px":"26px", fontWeight:"800", color:"#fff", margin:0, letterSpacing:"-0.02em" }}>
-                          Free Learning Resources
-                        </h2>
-                        <span style={{
-                          fontSize:"12px", padding:"4px 12px", borderRadius:"100px",
-                          background:phase.color+"20", color:phase.color, border:`1px solid ${phase.color}33`,
-                          fontWeight:"700",
-                        }}>
-                          {allRes.length} links
-                        </span>
+              <div style={{ display: "grid", gridTemplateColumns: (isMobile || isTablet) ? "1fr" : "1fr 1fr", gap: "28px" }}>
+                <div>
+                  <SectionLabel color={phase.color}>Build Projects</SectionLabel>
+                  {phase.projects.map((proj, i) => (
+                    <div key={i} className="fade-up" style={{ animationDelay: `${i * 80}ms`, marginBottom: "14px", padding: "18px 20px", background: "#070707", border: `1px solid #141414`, borderRadius: "4px" }}>
+                      <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "12px" }}>
+                        <div style={{ width: "26px", height: "26px", background: phase.darkColor, border: `1px solid ${phase.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: phase.color, fontWeight: "700", flexShrink: 0 }}>{proj.letter}</div>
+                        <span style={{ fontSize: "13px", color: "#ddd", fontFamily: "'DM Serif Display', serif" }}>{proj.name}</span>
                       </div>
-                      <p style={{ fontSize:"15px", color:"#666", lineHeight:"1.6", margin:"0 0 20px" }}>
-                        All resources are free or freely auditable. Click any card to open in a new tab.
-                        Starred resources are the highest recommended for this phase.
-                      </p>
-
-                      {/* Filter pills */}
-                      <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
-                        {["all","Courses","Books & Texts","Practice","Videos"].map(f => {
-                          const count = f==="all" ? allRes.length : allRes.filter(r=>r.cat===f).length;
-                          const active = resFilter===f;
-                          return (
-                            <button key={f} className="filter-btn" onClick={() => setResFilter(f)} style={{
-                              padding:"8px 18px", borderRadius:"100px",
-                              background: active ? phase.color : "#0d0d0d",
-                              border:`1px solid ${active ? phase.color : "#1e1e1e"}`,
-                              color: active ? "#000" : "#777",
-                              fontSize:"13px", letterSpacing:"0.04em",
-                              fontFamily:"inherit", cursor:"pointer", transition:"all 0.15s",
-                              fontWeight: active?"700":"400",
-                              opacity: active ? 1 : 0.8,
-                            }}>
-                              {f==="all" ? "All" : f} <span style={{ opacity:0.6 }}>({count})</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {resFilter==="all" ? (
-                      ["Courses","Books & Texts","Practice","Videos"].map(cat => {
-                        const items = allRes.filter(r=>r.cat===cat);
-                        if (!items.length) return null;
-                        const catIcon = {"Courses":"▶","Books & Texts":"◫","Practice":"◆","Videos":"⬡"}[cat];
-                        return (
-                          <div key={cat} style={{ marginBottom:"32px" }}>
-                            <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"14px" }}>
-                              <span style={{ fontSize:"14px", color:phase.color }}>{catIcon}</span>
-                              <span style={{ fontSize:"16px", color:"#ddd", fontWeight:"700" }}>{cat}</span>
-                              <div style={{ flex:1, height:"1px", background:"#141414" }}/>
-                              <span style={{ fontSize:"12px", color:"#333" }}>{items.length} items</span>
-                            </div>
-                            <div style={{ display:"grid", gridTemplateColumns: isMobile?"1fr":"1fr 1fr", gap:"10px" }}>
-                              {items.map((item,i) => <ResourceCard key={i} item={item} accent={phase.color}/>)}
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div style={{ display:"grid", gridTemplateColumns: isMobile?"1fr":"1fr 1fr", gap:"10px" }}>
-                        {filteredRes.map((item,i) => <ResourceCard key={i} item={item} accent={phase.color}/>)}
-                      </div>
-                    )}
-
-                    {/* Universal resources */}
-                    <div style={{ marginTop:"36px", padding:"24px 28px", background:"#0d0d0d", border:`1px solid ${phase.color}22`, borderRadius:"12px" }}>
-                      <SectionLabel color={phase.color}>Universal Resources — All Phases</SectionLabel>
-                      <div style={{ display:"grid", gridTemplateColumns: isMobile?"1fr":"1fr 1fr", gap:"10px" }}>
-                        {[
-                          {name:"Teach Yourself CS — curated self-study roadmap", url:"https://teachyourselfcs.com/", tag:"Free"},
-                          {name:"CS DIY Wiki — full self-taught CS degree guide", url:"https://csdiy.wiki/en/", tag:"Free"},
-                          {name:"MIT OpenCourseWare — all MIT courses free", url:"https://ocw.mit.edu/", tag:"MIT OCW"},
-                          {name:"GeeksforGeeks — comprehensive CS reference", url:"https://www.geeksforgeeks.org/", tag:"Practice"},
-                          {name:"Class Central — free course catalog (1000+ CS)", url:"https://www.classcentral.com/", tag:"Free"},
-                          {name:"The Missing Semester of Your CS Education (MIT)", url:"https://missing.csail.mit.edu/", tag:"MIT OCW"},
-                        ].map((item,i) => <ResourceCard key={i} item={item} accent={phase.color}/>)}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── MATH ── */}
-                {activeTab==="math" && (
-                  <div style={{ animation:"fadeUp 0.18s ease" }}>
-                    <div style={{ display:"grid", gridTemplateColumns: isMobile?"1fr":"1fr 1fr", gap:"40px" }}>
-                      <div>
-                        <SectionLabel color={phase.color}>Mathematical Curriculum</SectionLabel>
-                        {phase.math.map((t,i) => <TopicItem key={i} text={t} color={phase.color}/>)}
-                      </div>
-                      <div>
-                        <SectionLabel color={phase.color}>Hardware Foundations</SectionLabel>
-                        {phase.hardware.map((t,i) => <TopicItem key={i} text={t} color={phase.color}/>)}
-                      </div>
-                    </div>
-                    <CodeBlock color={phase.color} title="Per-Concept Requirements">
-{`FOR EACH mathematical concept in this phase:
-  1. State the formal definition (mathematical notation)
-  2. Prove from axioms where applicable
-  3. Show a worked example computed entirely by hand
-  4. Connect to hardware representation
-  5. Connect to C language behavior
-  6. Analyze computational complexity formally
-  7. Identify all edge cases and failure modes`}
-                    </CodeBlock>
-                    <div style={{ marginTop:"32px" }}>
-                      <SectionLabel color={phase.color}>Required Notation & Diagrams</SectionLabel>
-                      <div style={{ display:"grid", gridTemplateColumns: isMobile?"1fr 1fr":"repeat(3,1fr)", gap:"10px" }}>
-                        {["Truth tables","Binary walkthroughs","Formal proofs","Recurrence relations","Complexity derivations","ASCII memory diagrams","Stack frame diagrams","Recursion trees","Cache line layouts"].map(n => (
-                          <div key={n} style={{
-                            padding:"12px 16px", background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:"8px",
-                            fontSize:"14px", color:"#888",
-                          }}>
-                            <span style={{ color:phase.color, marginRight:"10px" }}>◈</span>{n}
+                      <div style={{ paddingLeft: "38px" }}>
+                        {proj.items.map((item, j) => (
+                          <div key={j} style={{ display: "flex", gap: "10px", padding: "5px 0", borderBottom: j < proj.items.length - 1 ? "1px solid #0c0c0c" : "none" }}>
+                            <span style={{ color: phase.color + "77", flexShrink: 0, marginTop: "1px", fontSize: "10px" }}>→</span>
+                            <span style={{ fontSize: "11px", color: "#555", lineHeight: "1.5", fontFamily: "'DM Serif Display', serif" }}>{item}</span>
                           </div>
                         ))}
                       </div>
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
 
-                {/* ── SYSTEMS ── */}
-                {activeTab==="systems" && (
-                  <div style={{ animation:"fadeUp 0.18s ease" }}>
-                    <SectionLabel color={phase.color}>C Systems Programming Topics</SectionLabel>
-                    {phase.cpp.map((t,i) => <TopicItem key={i} text={t} color={phase.color}/>)}
-                    <CodeBlock color={phase.color} title="Every C Implementation Must:">
-{`/* Compilation: gcc -Wall -Wextra -O2 -g -fsanitize=address,undefined */
-
-/* Each source file requires:
-   ─ Comments on stack vs heap behavior per variable
-   ─ Pointer ownership and lifetime annotations
-   ─ Cache and performance implications noted
-   ─ Common error modes with concrete examples
-   ─ Memory safety checklist at the bottom
-
-   Each example includes:
-   ─ Step-by-step execution trace walkthrough
-   ─ ASCII stack frame diagram showing all local vars
-   ─ Heap allocation map at each malloc call
-   ─ Formal Big-O complexity derivation
-   ─ A dedicated debugging section with planted bugs */`}
-                    </CodeBlock>
-                    <div style={{ marginTop:"32px" }}>
-                      <SectionLabel color={phase.color}>Required Diagrams Per Concept</SectionLabel>
-                      <div style={{ display:"grid", gridTemplateColumns: isMobile?"1fr 1fr":"repeat(4,1fr)", gap:"10px" }}>
-                        {["ASCII memory layout","Stack frame diagrams","Heap allocation maps","Pointer chain visuals","Recursion trees","Cache line diagrams","Register walkthroughs","Execution flow traces"].map(d => (
-                          <div key={d} style={{
-                            padding:"12px 16px", background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:"8px",
-                            fontSize:"13px", color:"#888",
-                          }}>
-                            <span style={{ color:phase.color, marginRight:"10px" }}>▸</span>{d}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── PROJECTS ── */}
-                {activeTab==="projects" && (
-                  <div style={{ animation:"fadeUp 0.18s ease" }}>
-                    <SectionLabel color={phase.color}>Phase {phase.id} Build Projects</SectionLabel>
-                    <div style={{ display:"grid", gridTemplateColumns: isMobile?"1fr":"1fr 1fr", gap:"18px", marginBottom:"36px" }}>
-                      {phase.projects.map(proj => (
-                        <div key={proj.letter} style={{
-                          background:"#0d0d0d", border:"1px solid #1a1a1a",
-                          borderTop:`3px solid ${phase.color}`,
-                          borderRadius:"12px", padding:"24px 26px",
-                        }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:"14px", marginBottom:"18px" }}>
-                            <div style={{
-                              width:"40px", height:"40px", borderRadius:"10px",
-                              background:phase.color, display:"flex", alignItems:"center",
-                              justifyContent:"center", color:"#000", fontWeight:"900", fontSize:"16px",
-                            }}>{proj.letter}</div>
-                            <div style={{ fontSize:"18px", color:"#fff", fontWeight:"700" }}>{proj.name}</div>
-                          </div>
-                          {proj.items.map(item => (
-                            <div key={item} style={{
-                              display:"flex", gap:"12px", alignItems:"flex-start",
-                              padding:"9px 0", borderBottom:"1px solid #131313",
-                              fontSize:"14px", color:"#888",
-                            }}>
-                              <span style={{ color:phase.color, flexShrink:0 }}>✓</span>{item}
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                    <SectionLabel color={phase.color}>Capstone Scale Projects</SectionLabel>
-                    <div style={{ display:"grid", gridTemplateColumns: isMobile?"1fr":"1fr 1fr", gap:"12px" }}>
-                      {capstoneProjects.map(c => (
-                        <div key={c.name} style={{
-                          display:"flex", gap:"14px", padding:"16px 18px",
-                          background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:"10px",
-                        }}>
-                          <span style={{ fontSize:"20px", color:c.color, flexShrink:0 }}>{c.icon}</span>
-                          <div>
-                            <div style={{ fontSize:"15px", color:"#ddd", fontWeight:"700", marginBottom:"4px" }}>{c.name}</div>
-                            <div style={{ fontSize:"13px", color:"#555" }}>{c.desc}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* ── MASTERY ── */}
-                {activeTab==="mastery" && (
-                  <div style={{ animation:"fadeUp 0.18s ease" }}>
-                    {/* Phase mastery header */}
-                    <div style={{
-                      display:"flex", gap:"16px", alignItems:"center",
-                      padding:"20px 24px", background:"#0d0d0d",
-                      border:`1px solid ${phase.color}28`, borderRadius:"12px", marginBottom:"28px",
-                    }}>
-                      <div style={{
-                        width:"64px", height:"64px", borderRadius:"50%", flexShrink:0,
-                        background:"#111", border:`3px solid ${phase.color}`,
-                        display:"flex", alignItems:"center", justifyContent:"center",
-                        fontSize:"20px", fontWeight:"800", color:phase.color,
-                      }}>
-                        {Math.round((phaseProgress(activePhase).done/phaseProgress(activePhase).total)*100)}%
-                      </div>
-                      <div>
-                        <div style={{ fontSize:"18px", color:"#fff", fontWeight:"700" }}>Phase {phase.id} Mastery Tracker</div>
-                        <div style={{ fontSize:"14px", color:"#666", marginTop:"4px" }}>
-                          {phaseProgress(activePhase).done} of {phaseProgress(activePhase).total} tasks completed — click any item to mark it done
-                        </div>
-                      </div>
-                    </div>
-
-                    {Object.entries(phase.checklist).map(([section,items]) => (
-                      <div key={section} style={{ marginBottom:"32px" }}>
-                        <SectionLabel color={phase.color}>
-                          {section==="theory"?"Theory Mastery":section==="programming"?"Programming Mastery":"Engineering Mastery"}
-                        </SectionLabel>
-                        {items.map(item => {
-                          const key = `${phase.id}-${section}-${item}`;
-                          return (
-                            <CheckItem
-                              key={item} text={item}
-                              checked={!!checkedItems[key]}
-                              accent={phase.color}
-                              darkColor={phase.darkColor}
-                              onToggle={() => toggle(key)}
-                            />
-                          );
-                        })}
+                <div>
+                  <SectionLabel color={phase.color}>Teaching Method</SectionLabel>
+                  <div style={{ marginBottom: "24px" }}>
+                    {phase.pedagogy.map((item, i) => (
+                      <div key={i} className="fade-up" style={{ animationDelay: `${i * 60}ms`, display: "flex", gap: "12px", alignItems: "flex-start", padding: "11px 0", borderBottom: "1px solid #0c0c0c" }}>
+                        <span style={{ fontSize: "8px", color: phase.color, fontWeight: "700", flexShrink: 0, marginTop: "3px", background: phase.darkColor, border: `1px solid ${phase.color}33`, padding: "2px 6px" }}>{String(i + 1).padStart(2, "0")}</span>
+                        <span style={{ fontSize: "12px", color: "#666", lineHeight: "1.65", fontFamily: "'DM Serif Display', serif" }}>{item}</span>
                       </div>
                     ))}
                   </div>
-                )}
 
-                {/* ── CHALLENGES ── */}
-                {activeTab==="challenges" && (
-                  <div style={{ animation:"fadeUp 0.18s ease" }}>
-                    <SectionLabel color={phase.color}>Graduate-Level Challenge Problems</SectionLabel>
-                    <div style={{ marginBottom:"36px" }}>
-                      {phase.challenges.map((c,i) => (
-                        <div key={i} style={{
-                          padding:"20px 24px", marginBottom:"12px",
-                          background:"#0d0d0d", border:"1px solid #1a1a1a",
-                          borderLeft:`4px solid ${phase.color}`,
-                          borderRadius:"0 10px 10px 0",
+                  <SectionLabel color={phase.color}>Quick Navigate</SectionLabel>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                    {phases.map((p, i) => {
+                      const pp = phaseProgress(i);
+                      const ppct = pp.total > 0 ? Math.round((pp.done / pp.total) * 100) : 0;
+                      return (
+                        <button key={p.id} onClick={() => goPhase(i)} style={{
+                          padding: "11px 12px", background: i === activePhase ? p.darkColor : "#070707",
+                          border: `1px solid ${i === activePhase ? p.color + "44" : "#131313"}`,
+                          cursor: "pointer", textAlign: "left", fontFamily: "inherit", transition: "all 0.15s",
                         }}>
-                          <div style={{ display:"flex", gap:"14px", alignItems:"flex-start" }}>
-                            <div style={{
-                              fontSize:"11px", color:phase.color,
-                              background:phase.darkColor, border:`1px solid ${phase.color}44`,
-                              borderRadius:"5px", padding:"3px 9px",
-                              flexShrink:0, marginTop:"3px", fontWeight:"700",
-                            }}>#{i+1}</div>
-                            <span style={{ fontSize:"16px", color:"#ddd", lineHeight:"1.7" }}>{c}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <SectionLabel color={phase.color}>Mini Exam Format</SectionLabel>
-                    <div style={{ background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:"12px", overflow:"hidden", marginBottom:"36px" }}>
-                      {[
-                        ["Written",   "Mathematical proofs and derivations — closed notes",     "45 min"],
-                        ["Implement", "Write a complete working C program from scratch",         "90 min"],
-                        ["Debug",     "Find and fix 5 planted bugs in provided source code",     "45 min"],
-                        ["Optimize",  "Improve a provided solution by ≥2× measured speedup",    "60 min"],
-                        ["Design",    "Architect a system that satisfies given constraints",     "30 min"],
-                      ].map(([type,desc,time],i,arr) => (
-                        <div key={type} style={{
-                          display:"flex", alignItems:"center", padding:"16px 22px", gap:"16px",
-                          borderBottom: i<arr.length-1?"1px solid #111":"none",
-                        }}>
-                          <div style={{
-                            fontSize:"10px", color:"#000", background:phase.color,
-                            borderRadius:"5px", padding:"4px 10px",
-                            flexShrink:0, fontWeight:"800", letterSpacing:"0.06em",
-                          }}>{type.toUpperCase()}</div>
-                          <div style={{ flex:1, fontSize:"14px", color:"#999" }}>{desc}</div>
-                          <div style={{ fontSize:"12px", color:"#444", flexShrink:0, fontWeight:"600" }}>{time}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <SectionLabel color={phase.color}>All Phase Challenges — Quick Navigate</SectionLabel>
-                    <div style={{ display:"grid", gridTemplateColumns: isMobile?"1fr":"1fr 1fr", gap:"10px" }}>
-                      {phases.map(p => (
-                        <button key={p.id} onClick={() => goPhase(p.id-1)} style={{
-                          background: p.id-1===activePhase ? p.color+"14" : "#0d0d0d",
-                          border:`1px solid ${p.id-1===activePhase ? p.color+"44" : "#1a1a1a"}`,
-                          borderRadius:"10px", padding:"14px 16px", cursor:"pointer",
-                          textAlign:"left", fontFamily:"inherit", transition:"all 0.15s",
-                        }}>
-                          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"6px" }}>
-                            <span style={{ fontSize:"13px", color: p.id-1===activePhase?p.color:"#666", fontWeight:"700" }}>
-                              {p.icon} Phase {p.id} — {p.shortTitle}
-                            </span>
-                            <span style={{ fontSize:"11px", color:"#333" }}>{p.challenges.length} problems</span>
-                          </div>
-                          <div style={{ fontSize:"12px", color:"#444", lineHeight:"1.5" }}>
-                            {p.challenges[0].slice(0,64)}…
-                          </div>
+                          <div style={{ fontSize: "9px", color: i === activePhase ? p.color : "#2a2a2a", fontWeight: "700", fontFamily: "'DM Serif Display', serif" }}>{p.icon} P{p.id}</div>
+                          <div style={{ fontSize: "9px", color: i === activePhase ? "#555" : "#1e1e1e", marginTop: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.shortTitle}</div>
+                          {ppct > 0 && <div style={{ marginTop: "4px", height: "1px", width: `${ppct}%`, background: p.color + "88" }} />}
                         </button>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
-                )}
-
+                </div>
               </div>
             </div>
           )}
-        </main>
-      </div>
 
-      {/* ══ FOOTER ══ */}
-      <footer style={{
-        borderTop:"1px solid #111", padding: isMobile?"14px 18px":"14px 32px",
-        display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"8px",
-        background:"#070707",
-      }}>
-        <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-          <div style={{
-            width:"22px", height:"22px", borderRadius:"50%",
-            background:"linear-gradient(135deg,#C8F542,#42C8F5)",
-            display:"flex", alignItems:"center", justifyContent:"center",
-            fontSize:"11px", fontWeight:"900", color:"#000",
-          }}>N</div>
-          <span style={{ fontSize:"12px", color:"#444" }}>
-            <span style={{ color:"#C8F542", fontWeight:"700" }}>nexuscodex</span>
-            {" "}· Build-Everything CS Curriculum · {phases.length} phases · {totalPossible} mastery tasks
-          </span>
+          {/* ── RESOURCES ── */}
+          {activeTab === "resources" && (
+            <div>
+              <div className="fade-up" style={{ padding: "14px 18px", marginBottom: "22px", background: "#0a1400", border: "1px solid #C8F54230", display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                <span style={{ fontSize: "12px", color: "#C8F542", flexShrink: 0 }}>✓</span>
+                <div>
+                  <div style={{ fontSize: "9px", color: "#C8F542", fontWeight: "700", marginBottom: "3px", letterSpacing: "0.12em" }}>100% FREE — ALL PAYWALLS REMOVED</div>
+                  <div style={{ fontSize: "11px", color: "#444", lineHeight: "1.5", fontFamily: "'DM Serif Display', serif" }}>Coursera paid auditing replaced with MIT OCW, YouTube lecture series, and open university courses. Every course marked FREE is genuinely free.</div>
+                </div>
+              </div>
+
+              <div className="fade-up stagger-1" style={{ display: "flex", gap: "6px", marginBottom: "22px", flexWrap: "wrap" }}>
+                {["all", "Courses", "Books & Texts", "Practice", "Videos"].map(f => (
+                  <button key={f} onClick={() => setResFilter(f)} style={{
+                    padding: "6px 13px", background: resFilter === f ? phase.darkColor : "#080808",
+                    border: `1px solid ${resFilter === f ? phase.color + "66" : "#181818"}`,
+                    color: resFilter === f ? phase.color : "#333",
+                    cursor: "pointer", fontSize: "8px", letterSpacing: "0.15em",
+                    textTransform: "uppercase", fontFamily: "inherit", transition: "all 0.15s",
+                  }}>{f === "all" ? "All" : f}</button>
+                ))}
+                <span style={{ marginLeft: "auto", fontSize: "9px", color: "#2a2a2a", alignSelf: "center" }}>{filteredRes.length} resources</span>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: "7px" }}>
+                {filteredRes.map((item, i) => <ResourceCard key={i} item={item} accent={phase.color} delay={i * 35} />)}
+              </div>
+            </div>
+          )}
+
+          {/* ── MATH ── */}
+          {activeTab === "math" && (
+            <div>
+              <SectionLabel color={phase.color}>Mathematical Foundations</SectionLabel>
+              {phase.math.map((item, i) => <TopicItem key={i} text={item} color={phase.color} delay={i * 50} />)}
+            </div>
+          )}
+
+          {/* ── SYSTEMS ── */}
+          {activeTab === "systems" && (
+            <div>
+              <SectionLabel color={phase.color}>Hardware Architecture</SectionLabel>
+              {phase.hardware.map((item, i) => <TopicItem key={i} text={item} color={phase.color} delay={i * 50} />)}
+              <div style={{ margin: "24px 0" }} />
+              <SectionLabel color={phase.color}>C Programming</SectionLabel>
+              {phase.cpp.map((item, i) => <TopicItem key={i} text={item} color={phase.color} delay={i * 50} />)}
+            </div>
+          )}
+
+          {/* ── PROJECTS ── */}
+          {activeTab === "projects" && (
+            <div>
+              <SectionLabel color={phase.color}>Build Projects</SectionLabel>
+              {phase.projects.map((proj, i) => (
+                <div key={i} className="fade-up" style={{ animationDelay: `${i * 100}ms`, marginBottom: "20px", padding: "26px 28px", background: "#070707", borderTop: `2px solid ${phase.color}55`, position: "relative", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", top: "50%", right: "16px", transform: "translateY(-50%)", fontSize: "64px", color: phase.color, opacity: 0.04, fontWeight: "900", pointerEvents: "none" }}>{proj.letter}</div>
+                  <div style={{ display: "flex", gap: "14px", alignItems: "center", marginBottom: "18px" }}>
+                    <div style={{ width: "34px", height: "34px", background: phase.darkColor, border: `1px solid ${phase.color}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", color: phase.color, fontWeight: "800", flexShrink: 0 }}>{proj.letter}</div>
+                    <div>
+                      <div style={{ fontSize: "15px", color: "#ddd", fontFamily: "'DM Serif Display', serif" }}>{proj.name}</div>
+                      <div style={{ fontSize: "9px", color: "#555", marginTop: "2px", letterSpacing: "0.15em" }}>PROJECT {String(i + 1).padStart(2, "0")}</div>
+                    </div>
+                  </div>
+                  <div style={{ paddingLeft: "48px" }}>
+                    {proj.items.map((item, j) => (
+                      <div key={j} style={{ display: "flex", gap: "12px", alignItems: "flex-start", padding: "8px 0", borderBottom: j < proj.items.length - 1 ? "1px solid #0c0c0c" : "none" }}>
+                        <span style={{ fontSize: "9px", color: phase.color, flexShrink: 0, marginTop: "3px" }}>→</span>
+                        <span style={{ fontSize: "14px", color: "#bbb", lineHeight: "1.6", fontFamily: "'DM Serif Display', serif" }}>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── MASTERY ── */}
+          {activeTab === "mastery" && (
+            <div>
+              {/* Mastery score card */}
+              <div className="fade-up" style={{ display: "flex", gap: "20px", alignItems: "center", padding: "22px 26px", background: phase.darkColor, border: `1px solid ${phase.color}33`, marginBottom: "28px", flexWrap: "wrap", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: "50%", right: "20px", transform: "translateY(-50%)", fontSize: "72px", color: phase.color, opacity: 0.04, fontFamily: "'DM Serif Display', serif", pointerEvents: "none", userSelect: "none" }}>
+                  {phasePct === 100 ? "✓" : phasePct > 50 ? "◑" : "○"}
+                </div>
+                <ProgressRing pct={phasePct} size={60} stroke={3} color={phase.color} label={phasePct} />
+                <div>
+                  <div style={{ fontSize: "20px", color: "#f0f0f0", fontFamily: "'DM Serif Display', serif", marginBottom: "5px" }}>
+                    {phasePct === 0 ? "Ready to begin?" : phasePct < 30 ? "You've started — don't stop." : phasePct < 60 ? "You're in the zone." : phasePct < 100 ? "Almost there — finish strong." : "Phase complete. 🎯"}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#888", display: "flex", gap: "12px", alignItems: "center" }}>
+                    <span>{prog.done} of {prog.total} tasks</span>
+                    <span style={{ color: "#333" }}>·</span>
+                    <span style={{ color: phase.color }}>{prog.total - prog.done > 0 ? `${prog.total - prog.done} remaining` : "All done"}</span>
+                  </div>
+                </div>
+                <div style={{ marginLeft: "auto", textAlign: "right" }}>
+                  <div style={{ fontSize: "9px", color: "#555", letterSpacing: "0.12em", marginBottom: "5px" }}>GLOBAL MASTERY</div>
+                  <div style={{ fontSize: "26px", color: "#C8F542", fontFamily: "'DM Serif Display', serif", lineHeight: 1 }}>{globalPct}%</div>
+                  <div style={{ fontSize: "9px", color: "#444", marginTop: "3px" }}>{totalChecked}/{totalPossible} tasks</div>
+                </div>
+              </div>
+
+              {[
+                { key: "theory", label: "Theory & Proof", icon: "∑" },
+                { key: "programming", label: "Programming", icon: "⌨" },
+                { key: "engineering", label: "Engineering", icon: "⚙" },
+              ].map(({ key, label, icon }, si) => (
+                <div key={key} className="fade-up" style={{ animationDelay: `${si * 80}ms`, marginBottom: "32px" }}>
+                  <SectionLabel color={phase.color}>{icon} {label}</SectionLabel>
+                  {phase.checklist[key].map((item, i) => {
+                    const k = `${phase.id}-${key}-${item}`;
+                    return <CheckItem key={i} text={item} checked={!!checkedItems[k]} accent={phase.color} darkColor={phase.darkColor} onToggle={() => toggle(k)} />;
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── CHALLENGES ── */}
+          {activeTab === "challenges" && (
+            <div>
+              <SectionLabel color={phase.color}>Graduate-Level Challenges</SectionLabel>
+              {phase.challenges.map((c, i) => (
+                <div key={i} className="fade-up" style={{ animationDelay: `${i * 70}ms`, padding: "18px 22px", marginBottom: "8px", background: "#070707", borderLeft: `3px solid ${phase.color}55` }}>
+                  <div style={{ display: "flex", gap: "14px", alignItems: "flex-start" }}>
+                    <div style={{ fontSize: "8px", color: phase.color, background: phase.darkColor, border: `1px solid ${phase.color}33`, padding: "3px 8px", flexShrink: 0, marginTop: "3px", fontWeight: "900" }}>#{String(i + 1).padStart(2, "0")}</div>
+                    <span style={{ fontSize: "15px", color: "#e0e0e0", lineHeight: "1.75", fontFamily: "'DM Serif Display', serif" }}>{c}</span>
+                  </div>
+                </div>
+              ))}
+
+              <div style={{ margin: "32px 0 20px" }} />
+              <SectionLabel color={phase.color}>Mini Exam Format</SectionLabel>
+              <div style={{ background: "#070707", border: "1px solid #121212" }}>
+                {[
+                  ["Written", "Mathematical proofs and derivations — closed notes", "45 min"],
+                  ["Implement", "Write a complete working C program from scratch", "90 min"],
+                  ["Debug", "Find and fix 5 planted bugs in provided source code", "45 min"],
+                  ["Optimize", "Improve a provided solution by ≥2× measured speedup", "60 min"],
+                  ["Design", "Architect a system that satisfies given constraints", "30 min"],
+                ].map(([type, desc, time], i, arr) => (
+                  <div key={type} style={{ display: "flex", alignItems: "center", padding: "13px 18px", gap: "14px", borderBottom: i < arr.length - 1 ? "1px solid #0c0c0c" : "none" }}>
+                    <div style={{ fontSize: "8px", color: "#000", background: phase.color, padding: "3px 9px", flexShrink: 0, fontWeight: "900", letterSpacing: "0.1em" }}>{type.toUpperCase()}</div>
+                    <div style={{ flex: 1, fontSize: "13px", color: "#aaa", fontFamily: "'DM Serif Display', serif" }}>{desc}</div>
+                    <div style={{ fontSize: "10px", color: "#666", flexShrink: 0 }}>{time}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
-          <span style={{ fontSize:"11px", color:"#2a2a2a" }}>MIT · CMU · Stanford · Berkeley · ETH Zürich · Harvard</span>
+
+        {/* Bottom status bar */}
+        <div style={{ padding: "8px 20px", borderTop: "1px solid #0a0a0a", background: "#030303", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+            <span style={{ fontSize: "9px", color: "#555", letterSpacing: "0.15em" }}>P{phase.id}/{phases.length}</span>
+            <span style={{ fontSize: "9px", color: "#555" }}>·</span>
+            <span style={{ fontSize: "9px", color: "#666", letterSpacing: "0.1em" }}>{phase.shortTitle.toUpperCase()}</span>
+          </div>
+          <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
+            <span style={{ fontSize: "9px", color: "#555", letterSpacing: "0.12em" }}>⌘K SEARCH</span>
+            <span style={{ fontSize: "9px", color: "#555" }}>MIT · CMU · STANFORD · BERKELEY</span>
+          </div>
         </div>
-      </footer>
+      </main>
     </div>
   );
 }
