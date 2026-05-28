@@ -115,6 +115,38 @@ const GlobalStyles = () => {
       .cta-secondary:hover { border-color: #555 !important; color: #aaa !important; }
 
       /* scanline removed */
+
+      /* ── ENHANCED VISIBILITY & INTERACTIONS ── */
+      ::selection { background: rgba(200,245,66,0.2); color: #C8F542; }
+      input::placeholder { color: #333 !important; }
+
+      /* Sidebar nav hover */
+      .sidebar-btn { transition: all 0.15s ease !important; }
+      .sidebar-btn:hover { background: rgba(255,255,255,0.03) !important; }
+      .sidebar-btn:hover .sidebar-phase-name { color: #e0e0e0 !important; }
+      .sidebar-btn:hover .sidebar-phase-icon { opacity: 0.85 !important; }
+
+      /* Resource filter hover */
+      .res-filter-btn:hover { border-color: #444 !important; color: #ccc !important; }
+
+      /* Quick nav hover */
+      .qnav-btn:hover { background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.12) !important; }
+      .qnav-btn:hover .qnav-name { color: #ccc !important; }
+
+      /* Phase button landing hover */
+      .phase-btn { border-radius: 8px !important; }
+
+      /* Tab bar spacing */
+      .tab-btn-group button { padding: 12px 16px !important; font-size: 10px !important; }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar { width: 4px; height: 4px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #1e1e1e; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #333; }
+
+      /* Sidebar footer btn */
+      .sidebar-footer-btn:hover { border-color: #333 !important; color: #777 !important; }
     `;
     document.head.appendChild(style);
     return () => document.head.removeChild(style);
@@ -579,7 +611,7 @@ function CommandPalette({ phases, onPhase, onClose, checkedItems }) {
               flex: 1, background: "none", border: "none", outline: "none",
               color: "#e0e0e0", fontSize: "14px", fontFamily: "'DM Mono', 'Courier New', monospace",
             }} />
-          <span style={{ fontSize: "10px", color: "#333", fontFamily: "'DM Mono', monospace", border: "1px solid #222", padding: "2px 6px", borderRadius: "3px" }}>ESC</span>
+          <span style={{ fontSize: "10px", color: "#888", fontFamily: "'DM Mono', monospace", border: "1px solid #333", padding: "2px 6px", borderRadius: "3px" }}>ESC</span>
         </div>
         <div style={{ maxHeight: "360px", overflowY: "auto" }}>
           {filtered.map((cmd, i) => (
@@ -853,7 +885,7 @@ function ResourceCard({ item, accent, delay = 0 }) {
       </div>
       {item.stars && (
         <span style={{ letterSpacing: "2px", fontSize: "11px" }}>
-          {[1, 2, 3, 4, 5].map(i => <span key={i} style={{ color: i <= item.stars ? accent : "#1e1e1e" }}>★</span>)}
+          {[1, 2, 3, 4, 5].map(i => <span key={i} style={{ color: i <= item.stars ? accent : "#282828" }}>★</span>)}
         </span>
       )}
     </a>
@@ -870,7 +902,7 @@ function TickerTape() {
     <div style={{ overflow: "hidden", background: "#0a0a0a", borderBottom: "1px solid #111", height: "28px", display: "flex", alignItems: "center" }}>
       <div style={{ display: "flex", animation: "ticker 30s linear infinite", whiteSpace: "nowrap" }}>
         {[text, text].map((t, i) => (
-          <span key={i} style={{ fontSize: "9px", color: "#555", letterSpacing: "0.2em", fontFamily: "'DM Mono', monospace", paddingRight: "80px" }}>{t}</span>
+          <span key={i} style={{ fontSize: "9px", color: "#777", letterSpacing: "0.2em", fontFamily: "'DM Mono', monospace", paddingRight: "80px" }}>{t}</span>
         ))}
       </div>
     </div>
@@ -1016,7 +1048,7 @@ export default function App() {
 
           <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", marginBottom: "36px" }} className="fade-up">
             <div style={{ width: "28px", height: "1px", background: "#C8F542" }} />
-            <span style={{ fontSize: "9px", color: "#C8F542", letterSpacing: "0.35em" }}>OPEN·SOURCE · CS · EDUCATION</span>
+            <span style={{ fontSize: "9px", color: "#C8F542", letterSpacing: "0.3em" }}>OPEN·SOURCE · CS · EDUCATION</span>
             <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#C8F542", animation: "pulse-ring 2s ease-out infinite" }} />
           </div>
 
@@ -1080,8 +1112,8 @@ export default function App() {
                     {ppct > 0 && (
                       <div style={{ position: "absolute", bottom: 0, left: 0, height: "2px", width: `${ppct}%`, background: p.color, transition: "width 0.4s" }} />
                     )}
-                    <span style={{ fontSize: isMobile ? "15px" : "20px", color: hovPhase === i ? p.color : "#2a2a2a", transition: "color 0.2s", fontFamily: "'DM Serif Display', serif" }}>{p.icon}</span>
-                    <span style={{ fontSize: "7px", color: hovPhase === i ? p.color : "#222", letterSpacing: "0.1em" }}>P{p.id}</span>
+                    <span style={{ fontSize: isMobile ? "15px" : "20px", color: hovPhase === i ? p.color : "#666", transition: "color 0.2s", fontFamily: "'DM Serif Display', serif" }}>{p.icon}</span>
+                    <span style={{ fontSize: "8px", color: hovPhase === i ? p.color : "#555", letterSpacing: "0.1em" }}>P{p.id}</span>
                   </button>
                 );
               })}
@@ -1106,8 +1138,8 @@ export default function App() {
               { n: "0", label: "Paywalls" },
             ].map(({ n, label }) => (
               <div key={label} style={{ textAlign: "left" }}>
-                <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "36px", color: "#d0d0d0", lineHeight: "1" }}>{n}</div>
-                <div style={{ fontSize: "9px", color: "#333", letterSpacing: "0.2em", textTransform: "uppercase", marginTop: "4px" }}>{label}</div>
+                <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "42px", color: "#f0f0f0", lineHeight: "1", letterSpacing: "-0.03em" }}>{n}</div>
+                <div style={{ fontSize: "9px", color: "#888", letterSpacing: "0.18em", textTransform: "uppercase", marginTop: "5px" }}>{label}</div>
               </div>
             ))}
           </div>
@@ -1138,12 +1170,12 @@ export default function App() {
               View Capstones
             </button>
             <button onClick={() => setCmdOpen(true)} style={{
-              padding: "14px 18px", background: "transparent", color: "#2a2a2a",
-              border: "1px solid #151515", cursor: "pointer", fontSize: "10px",
+              padding: "14px 18px", background: "transparent", color: "#666",
+              border: "1px solid #2a2a2a", cursor: "pointer", fontSize: "10px",
               fontFamily: "inherit", transition: "all 0.2s", letterSpacing: "0.1em",
             }}
-              onMouseEnter={e => e.currentTarget.style.color = "#444"}
-              onMouseLeave={e => e.currentTarget.style.color = "#2a2a2a"}
+              onMouseEnter={e => e.currentTarget.style.color = "#aaa"}
+              onMouseLeave={e => e.currentTarget.style.color = "#666"}
             >⌘K Search</button>
           </div>
         </div>
@@ -1181,8 +1213,8 @@ export default function App() {
                 <div style={{ display: "flex", gap: "16px" }}>
                   <div style={{ fontSize: "22px", color: p.color, flexShrink: 0, fontFamily: "'DM Serif Display', serif", width: "32px" }}>{p.icon}</div>
                   <div>
-                    <div style={{ fontSize: "15px", color: "#e0e0e0", fontWeight: "500", marginBottom: "7px", fontFamily: "'DM Serif Display', serif" }}>{p.name}</div>
-                    <div style={{ fontSize: "13px", color: "#888", lineHeight: "1.65", fontFamily: "'DM Serif Display', serif" }}>{p.desc}</div>
+                    <div style={{ fontSize: "16px", color: "#f0f0f0", fontWeight: "500", marginBottom: "8px", fontFamily: "'DM Serif Display', serif" }}>{p.name}</div>
+                    <div style={{ fontSize: "13px", color: "#aaa", lineHeight: "1.7", fontFamily: "'DM Serif Display', serif" }}>{p.desc}</div>
                   </div>
                 </div>
               </div>
@@ -1229,8 +1261,8 @@ export default function App() {
           {["nav", "timeline"].map(t => (
             <button key={t} onClick={() => setSidebarTab(t)} style={{
               flex: 1, padding: "9px 0", background: "none", border: "none",
-              borderBottom: `1px solid ${sidebarTab === t ? "#C8F54266" : "transparent"}`,
-              color: sidebarTab === t ? "#C8F542" : "#666",
+              borderBottom: `2px solid ${sidebarTab === t ? "#C8F542" : "transparent"}`,
+              color: sidebarTab === t ? "#C8F542" : "#888",
               cursor: "pointer", fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", fontFamily: "inherit",
             }}>{t}</button>
           ))}
@@ -1251,7 +1283,7 @@ export default function App() {
           </div>
           <div style={{ marginTop: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Sparkline values={sparklineData} color="#C8F54288" width={100} height={16} />
-            <span style={{ fontSize: "9px", color: "#777", fontFamily: "'DM Mono', monospace" }}>{totalChecked}<span style={{color:"#333"}}>/{totalPossible}</span></span>
+            <span style={{ fontSize: "9px", color: "#777", fontFamily: "'DM Mono', monospace" }}>{totalChecked}<span style={{color:"#555"}}>/{totalPossible}</span></span>
           </div>
         </div>
 
@@ -1269,10 +1301,10 @@ export default function App() {
                 fontFamily: "inherit", transition: "all 0.15s",
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <span style={{ fontSize: "13px", color: active ? p.color : "#222", flexShrink: 0, fontFamily: "'DM Serif Display', serif" }}>{p.icon}</span>
+                  <span style={{ fontSize: "14px", color: active ? p.color : "#666", flexShrink: 0, fontFamily: "'DM Serif Display', serif" }}>{p.icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "11px", color: active ? "#fff" : "#888", fontWeight: active ? "700" : "400", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      <span style={{ color: active ? p.color : "#555", marginRight: "4px" }}>P{String(p.id).padStart(2,"0")}</span>{p.shortTitle}
+                    <div style={{ fontSize: "12px", color: active ? "#fff" : "#c0c0c0", fontWeight: active ? "700" : "400", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <span style={{ color: active ? p.color : "#888", marginRight: "4px" }}>P{String(p.id).padStart(2,"0")}</span>{p.shortTitle}
                     </div>
                     <div style={{ marginTop: "3px", height: "1px", background: "#111" }}>
                       <div style={{ height: "100%", width: `${ppct}%`, background: p.color, transition: "width 0.4s" }} />
@@ -1291,18 +1323,21 @@ export default function App() {
         <div style={{ padding: "12px 14px", borderTop: "1px solid #0c0c0c", flexShrink: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
           <button onClick={() => setCmdOpen(true)} style={{
             width: "100%", padding: "9px", background: "#0a0a0a", border: "1px solid #181818",
-            color: "#333", cursor: "pointer", fontSize: "8px", letterSpacing: "0.18em",
+            color: "#777", cursor: "pointer", fontSize: "8px", letterSpacing: "0.18em",
             textTransform: "uppercase", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-          }}>
+            transition: "all 0.15s",
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#333"; e.currentTarget.style.color = "#bbb"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#181818"; e.currentTarget.style.color = "#777"; }}>
             <span style={{ color: "#555" }}>⌘K</span> Command Palette
           </button>
           <button onClick={() => setView("capstone")} style={{ width: "100%", padding: "8px", background: "none", border: "1px solid #1e1e1e", color: "#555", cursor: "pointer", fontSize: "8px", letterSpacing: "0.15em", fontFamily: "inherit", transition: "all 0.15s" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#444"; e.currentTarget.style.color = "#888"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#1e1e1e"; e.currentTarget.style.color = "#555"; }}
           >⬡ Capstone Projects</button>
-          <button onClick={() => setView("landing")} style={{ width: "100%", padding: "7px", background: "none", border: "none", color: "#333", cursor: "pointer", fontSize: "8px", letterSpacing: "0.15em", fontFamily: "inherit", transition: "color 0.15s" }}
-            onMouseEnter={e => e.currentTarget.style.color = "#666"}
-            onMouseLeave={e => e.currentTarget.style.color = "#333"}
+          <button onClick={() => setView("landing")} style={{ width: "100%", padding: "7px", background: "none", border: "none", color: "#666", cursor: "pointer", fontSize: "8px", letterSpacing: "0.15em", fontFamily: "inherit", transition: "color 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.color = "#bbb"}
+            onMouseLeave={e => e.currentTarget.style.color = "#666"}
           >← Back to Home</button>
         </div>
       </aside>
@@ -1322,10 +1357,10 @@ export default function App() {
             </div>
 
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: isMobile ? "12px" : "13px", fontWeight: "500", color: "#ddd", lineHeight: "1.2", fontFamily: "'DM Serif Display', serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div style={{ fontSize: isMobile ? "13px" : "15px", fontWeight: "500", color: "#f0f0f0", lineHeight: "1.2", fontFamily: "'DM Serif Display', serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {isMobile ? phase.shortTitle : phase.title}
               </div>
-              <div style={{ fontSize: "9px", color: "#777", marginTop: "2px", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: "6px" }}>
+              <div style={{ fontSize: "10px", color: "#888", marginTop: "3px", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{ color: "#555" }}>Phase {phase.id}/{phases.length}</span>
                 <span style={{ color: "#333" }}>·</span>
                 <span style={{ color: phase.color, opacity: 0.75 }}>{phase.difficulty}</span>
@@ -1370,14 +1405,14 @@ export default function App() {
                   onClick={() => setActiveTab(t.id)}
                   title={t.hint}
                   style={{
-                    padding: "11px 13px", background: "none", border: "none",
+                    padding: "12px 14px", background: isActive ? phase.color + "12" : "none", border: "none",
                     borderBottom: `2px solid ${isActive ? phase.color : "transparent"}`,
-                    color: isActive ? phase.color : "#555",
-                    cursor: "pointer", fontSize: "9px", fontFamily: "inherit",
-                    letterSpacing: "0.12em", textTransform: "uppercase",
+                    color: isActive ? phase.color : "#777",
+                    cursor: "pointer", fontSize: "10px", fontFamily: "inherit",
+                    letterSpacing: "0.1em", textTransform: "uppercase",
                     transition: "all 0.18s", whiteSpace: "nowrap",
-                    fontWeight: isActive ? "700" : "400",
-                    opacity: isActive ? 1 : 0.65,
+                    fontWeight: isActive ? "700" : "500",
+                    opacity: isActive ? 1 : 0.75,
                     position: "relative",
                   }}
                   onMouseEnter={e => { if (!isActive) { e.currentTarget.style.color = "#aaa"; e.currentTarget.style.opacity = "1"; }}}
@@ -1400,15 +1435,15 @@ export default function App() {
           {activeTab === "overview" && (
             <div>
               {/* Hero quote */}
-              <div className="fade-up" style={{ padding: "22px 26px", marginBottom: "28px", background: phase.darkColor, borderLeft: `3px solid ${phase.color}`, position: "relative", overflow: "hidden" }}>
+              <div className="fade-up" style={{ padding: "24px 28px", marginBottom: "28px", background: phase.darkColor, borderLeft: `3px solid ${phase.color}`, borderRadius: "0 10px 10px 0", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", top: "50%", right: "20px", transform: "translateY(-50%)", fontSize: "80px", color: phase.color, opacity: 0.05, fontFamily: "'DM Serif Display', serif", lineHeight: 1, pointerEvents: "none", userSelect: "none" }}>{phase.icon}</div>
-                <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: isMobile ? "20px" : "26px", color: phase.color, fontStyle: "italic", lineHeight: "1.4", letterSpacing: "-0.01em" }}>"{phase.tagline}"</div>
+                <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: isMobile ? "22px" : "30px", color: phase.color, fontStyle: "italic", lineHeight: "1.35", letterSpacing: "-0.02em" }}>"{phase.tagline}"</div>
                 <div style={{ marginTop: "10px", display: "flex", gap: "10px", alignItems: "center" }}>
                   <span style={{ fontSize: "10px", color: "#888", letterSpacing: "0.1em" }}>{phase.weeks}</span>
                   <span style={{ color: "#333" }}>·</span>
                   <span style={{ fontSize: "9px", color: dm.color, letterSpacing: "0.12em" }}>{phase.difficulty.toUpperCase()}</span>
-                  <span style={{ color: "#1e1e1e" }}>·</span>
-                  <span style={{ fontSize: "9px", color: "#333" }}>{prog.done}/{prog.total} COMPLETED</span>
+                  <span style={{ color: "#333" }}>·</span>
+                  <span style={{ fontSize: "9px", color: "#777" }}>{prog.done}/{prog.total} COMPLETED</span>
                 </div>
               </div>
 
@@ -1442,7 +1477,7 @@ export default function App() {
                         {proj.items.map((item, j) => (
                           <div key={j} style={{ display: "flex", gap: "10px", padding: "5px 0", borderBottom: j < proj.items.length - 1 ? "1px solid #0c0c0c" : "none" }}>
                             <span style={{ color: phase.color + "77", flexShrink: 0, marginTop: "1px", fontSize: "10px" }}>→</span>
-                            <span style={{ fontSize: "11px", color: "#555", lineHeight: "1.5", fontFamily: "'DM Serif Display', serif" }}>{item}</span>
+                            <span style={{ fontSize: "12px", color: "#999", lineHeight: "1.55", fontFamily: "'DM Serif Display', serif" }}>{item}</span>
                           </div>
                         ))}
                       </div>
@@ -1472,8 +1507,8 @@ export default function App() {
                           border: `1px solid ${i === activePhase ? p.color + "44" : "#131313"}`,
                           cursor: "pointer", textAlign: "left", fontFamily: "inherit", transition: "all 0.15s",
                         }}>
-                          <div style={{ fontSize: "9px", color: i === activePhase ? p.color : "#2a2a2a", fontWeight: "700", fontFamily: "'DM Serif Display', serif" }}>{p.icon} P{p.id}</div>
-                          <div style={{ fontSize: "9px", color: i === activePhase ? "#555" : "#1e1e1e", marginTop: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.shortTitle}</div>
+                          <div style={{ fontSize: "10px", color: i === activePhase ? p.color : "#666", fontWeight: "700", fontFamily: "'DM Serif Display', serif" }}>{p.icon} P{p.id}</div>
+                          <div style={{ fontSize: "9px", color: i === activePhase ? "#888" : "#666", marginTop: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.shortTitle}</div>
                           {ppct > 0 && <div style={{ marginTop: "4px", height: "1px", width: `${ppct}%`, background: p.color + "88" }} />}
                         </button>
                       );
@@ -1491,7 +1526,7 @@ export default function App() {
                 <span style={{ fontSize: "12px", color: "#C8F542", flexShrink: 0 }}>✓</span>
                 <div>
                   <div style={{ fontSize: "9px", color: "#C8F542", fontWeight: "700", marginBottom: "3px", letterSpacing: "0.12em" }}>100% FREE — ALL PAYWALLS REMOVED</div>
-                  <div style={{ fontSize: "11px", color: "#444", lineHeight: "1.5", fontFamily: "'DM Serif Display', serif" }}>Coursera paid auditing replaced with MIT OCW, YouTube lecture series, and open university courses. Every course marked FREE is genuinely free.</div>
+                  <div style={{ fontSize: "12px", color: "#888", lineHeight: "1.6", fontFamily: "'DM Serif Display', serif" }}>Coursera paid auditing replaced with MIT OCW, YouTube lecture series, and open university courses. Every course marked FREE is genuinely free.</div>
                 </div>
               </div>
 
@@ -1500,12 +1535,12 @@ export default function App() {
                   <button key={f} onClick={() => setResFilter(f)} style={{
                     padding: "6px 13px", background: resFilter === f ? phase.darkColor : "#080808",
                     border: `1px solid ${resFilter === f ? phase.color + "66" : "#181818"}`,
-                    color: resFilter === f ? phase.color : "#333",
+                    color: resFilter === f ? phase.color : "#999",
                     cursor: "pointer", fontSize: "8px", letterSpacing: "0.15em",
                     textTransform: "uppercase", fontFamily: "inherit", transition: "all 0.15s",
                   }}>{f === "all" ? "All" : f}</button>
                 ))}
-                <span style={{ marginLeft: "auto", fontSize: "9px", color: "#2a2a2a", alignSelf: "center" }}>{filteredRes.length} resources</span>
+                <span style={{ marginLeft: "auto", fontSize: "9px", color: "#666", alignSelf: "center" }}>{filteredRes.length} resources</span>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: "7px" }}>
@@ -1544,7 +1579,7 @@ export default function App() {
                     <div style={{ width: "34px", height: "34px", background: phase.darkColor, border: `1px solid ${phase.color}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", color: phase.color, fontWeight: "800", flexShrink: 0 }}>{proj.letter}</div>
                     <div>
                       <div style={{ fontSize: "15px", color: "#ddd", fontFamily: "'DM Serif Display', serif" }}>{proj.name}</div>
-                      <div style={{ fontSize: "9px", color: "#555", marginTop: "2px", letterSpacing: "0.15em" }}>PROJECT {String(i + 1).padStart(2, "0")}</div>
+                      <div style={{ fontSize: "9px", color: "#777", marginTop: "2px", letterSpacing: "0.15em" }}>PROJECT {String(i + 1).padStart(2, "0")}</div>
                     </div>
                   </div>
                   <div style={{ paddingLeft: "48px" }}>
@@ -1575,14 +1610,14 @@ export default function App() {
                   </div>
                   <div style={{ fontSize: "11px", color: "#888", display: "flex", gap: "12px", alignItems: "center" }}>
                     <span>{prog.done} of {prog.total} tasks</span>
-                    <span style={{ color: "#333" }}>·</span>
+                    <span style={{ color: "#555" }}>·</span>
                     <span style={{ color: phase.color }}>{prog.total - prog.done > 0 ? `${prog.total - prog.done} remaining` : "All done"}</span>
                   </div>
                 </div>
                 <div style={{ marginLeft: "auto", textAlign: "right" }}>
-                  <div style={{ fontSize: "9px", color: "#555", letterSpacing: "0.12em", marginBottom: "5px" }}>GLOBAL MASTERY</div>
+                  <div style={{ fontSize: "9px", color: "#777", letterSpacing: "0.12em", marginBottom: "5px" }}>GLOBAL MASTERY</div>
                   <div style={{ fontSize: "26px", color: "#C8F542", fontFamily: "'DM Serif Display', serif", lineHeight: 1 }}>{globalPct}%</div>
-                  <div style={{ fontSize: "9px", color: "#444", marginTop: "3px" }}>{totalChecked}/{totalPossible} tasks</div>
+                  <div style={{ fontSize: "9px", color: "#777", marginTop: "3px" }}>{totalChecked}/{totalPossible} tasks</div>
                 </div>
               </div>
 
@@ -1607,7 +1642,7 @@ export default function App() {
             <div>
               <SectionLabel color={phase.color}>Graduate-Level Challenges</SectionLabel>
               {phase.challenges.map((c, i) => (
-                <div key={i} className="fade-up" style={{ animationDelay: `${i * 70}ms`, padding: "18px 22px", marginBottom: "8px", background: "#070707", borderLeft: `3px solid ${phase.color}55` }}>
+                <div key={i} className="fade-up" style={{ animationDelay: `${i * 70}ms`, padding: "18px 22px", marginBottom: "8px", background: "#080808", borderLeft: `3px solid ${phase.color}`, borderRadius: "0 8px 8px 0", transition: "background 0.15s" }}>
                   <div style={{ display: "flex", gap: "14px", alignItems: "flex-start" }}>
                     <div style={{ fontSize: "8px", color: phase.color, background: phase.darkColor, border: `1px solid ${phase.color}33`, padding: "3px 8px", flexShrink: 0, marginTop: "3px", fontWeight: "900" }}>#{String(i + 1).padStart(2, "0")}</div>
                     <span style={{ fontSize: "15px", color: "#e0e0e0", lineHeight: "1.75", fontFamily: "'DM Serif Display', serif" }}>{c}</span>
@@ -1640,12 +1675,12 @@ export default function App() {
         {/* Bottom status bar */}
         <div style={{ padding: "8px 20px", borderTop: "1px solid #0a0a0a", background: "#030303", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-            <span style={{ fontSize: "9px", color: "#555", letterSpacing: "0.15em" }}>P{phase.id}/{phases.length}</span>
-            <span style={{ fontSize: "9px", color: "#555" }}>·</span>
-            <span style={{ fontSize: "9px", color: "#666", letterSpacing: "0.1em" }}>{phase.shortTitle.toUpperCase()}</span>
+            <span style={{ fontSize: "9px", color: "#777", letterSpacing: "0.15em" }}>P{phase.id}/{phases.length}</span>
+            <span style={{ fontSize: "9px", color: "#444" }}>·</span>
+            <span style={{ fontSize: "9px", color: "#888", letterSpacing: "0.1em" }}>{phase.shortTitle.toUpperCase()}</span>
           </div>
           <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
-            <span style={{ fontSize: "9px", color: "#555", letterSpacing: "0.12em" }}>⌘K SEARCH</span>
+            <span style={{ fontSize: "9px", color: "#777", letterSpacing: "0.12em" }}>⌘K SEARCH</span>
             <span style={{ fontSize: "9px", color: "#555" }}>MIT · CMU · STANFORD · BERKELEY</span>
           </div>
         </div>
