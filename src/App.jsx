@@ -9,6 +9,7 @@ const GlobalStyles = () => {
     style.textContent = `
       @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Inter:wght@400;500;600;700&display=swap');
       
+      html, body, #root { margin: 0 !important; padding: 0 !important; width: 100%; height: 100%; overflow: hidden; }
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       
       ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -993,7 +994,7 @@ export default function App() {
 
   if (view === "landing") {
     return (
-      <div style={{ minHeight: "100vh", background: "#040404", fontFamily: "Inter, system-ui, sans-serif", color: "#fff", position: "relative", overflow: "hidden" }}>
+      <div style={{ minHeight: "100vh", width: "100vw", margin: 0, padding: 0, background: "#040404", fontFamily: "Inter, system-ui, sans-serif", color: "#fff", position: "relative", overflow: "hidden" }}>
         <GlobalStyles />
         <Overlays />
         <CursorGlow />
