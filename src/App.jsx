@@ -7,7 +7,7 @@ const GlobalStyles = () => {
   useEffect(() => {
     const style = document.createElement("style");
     style.textContent = `
-      @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Inter:wght@400;500;600;700&display=swap');
       
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       
@@ -632,7 +632,7 @@ function CommandPalette({ phases, onPhase, onClose, checkedItems }) {
                 fontFamily: "'DM Serif Display', Georgia, serif",
               }}>{cmd.icon}</div>
               <div>
-                <div style={{ fontSize: "13px", color: "#ddd", fontWeight: "500" }}>{cmd.label}</div>
+                <div style={{ fontSize: "14px", color: "#ebebeb", fontWeight: "500", fontFamily: "Inter, sans-serif" }}>{cmd.label}</div>
                 <div style={{ fontSize: "11px", color: "#777", marginTop: "1px", fontFamily: "'DM Mono', monospace" }}>{cmd.sub}</div>
               </div>
             </div>
@@ -786,7 +786,7 @@ function TopicItem({ text, color, delay = 0 }) {
       animationDelay: `${delay}ms`,
     }}>
       <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: color, flexShrink: 0, marginTop: "10px", boxShadow: `0 0 6px ${color}` }} />
-      <span style={{ fontSize: "15px", color: "#d4d4d4", lineHeight: "1.75", fontFamily: "'DM Serif Display', Georgia, serif" }}>{text}</span>
+      <span style={{ fontSize: "15px", color: "#ddd", lineHeight: "1.75", fontFamily: "Inter, system-ui, sans-serif" }}>{text}</span>
     </div>
   );
 }
@@ -824,9 +824,9 @@ function CheckItem({ text, checked, accent, darkColor, onToggle }) {
         {checked ? "✓" : ""}
       </div>
       <span style={{
-        fontSize: "14px", color: checked ? "#555" : "#e0e0e0",
+        fontSize: "14px", color: checked ? "#555" : "#e8e8e8",
         textDecoration: checked ? "line-through" : "none",
-        lineHeight: "1.7", fontFamily: "'DM Serif Display', Georgia, serif",
+        lineHeight: "1.7", fontFamily: "Inter, system-ui, sans-serif",
         transition: "color 0.2s",
       }}>{text}</span>
     </div>
@@ -873,7 +873,7 @@ function ResourceCard({ item, accent, delay = 0 }) {
         )}
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
-        <span style={{ fontSize: "14px", color: "#e8e8e8", lineHeight: "1.55", flex: 1, fontFamily: "'DM Serif Display', Georgia, serif" }}>
+        <span style={{ fontSize: "14px", color: "#ececec", lineHeight: "1.55", flex: 1, fontFamily: "Inter, system-ui, sans-serif", fontWeight: "500" }}>
           {item.name}
         </span>
         <span style={{
@@ -993,7 +993,7 @@ export default function App() {
 
   if (view === "landing") {
     return (
-      <div style={{ minHeight: "100vh", background: "#040404", fontFamily: "'DM Mono', 'Courier New', monospace", color: "#fff", position: "relative", overflow: "hidden" }}>
+      <div style={{ minHeight: "100vh", background: "#040404", fontFamily: "Inter, system-ui, sans-serif", color: "#fff", position: "relative", overflow: "hidden" }}>
         <GlobalStyles />
         <Overlays />
         <CursorGlow />
@@ -1191,7 +1191,7 @@ export default function App() {
   /* ─── CAPSTONE ─── */
   if (view === "capstone") {
     return (
-      <div style={{ minHeight: "100vh", background: "#040404", fontFamily: "'DM Mono', 'Courier New', monospace", color: "#fff" }}>
+      <div style={{ minHeight: "100vh", background: "#040404", fontFamily: "Inter, system-ui, sans-serif", color: "#fff" }}>
         <GlobalStyles />
         <Overlays />
         <CursorGlow />
@@ -1213,8 +1213,8 @@ export default function App() {
                 <div style={{ display: "flex", gap: "16px" }}>
                   <div style={{ fontSize: "22px", color: p.color, flexShrink: 0, fontFamily: "'DM Serif Display', serif", width: "32px" }}>{p.icon}</div>
                   <div>
-                    <div style={{ fontSize: "16px", color: "#f0f0f0", fontWeight: "500", marginBottom: "8px", fontFamily: "'DM Serif Display', serif" }}>{p.name}</div>
-                    <div style={{ fontSize: "13px", color: "#aaa", lineHeight: "1.7", fontFamily: "'DM Serif Display', serif" }}>{p.desc}</div>
+                    <div style={{ fontSize: "17px", color: "#f0f0f0", fontWeight: "600", marginBottom: "8px", fontFamily: "Inter, system-ui, sans-serif" }}>{p.name}</div>
+                    <div style={{ fontSize: "14px", color: "#aaa", lineHeight: "1.7", fontFamily: "Inter, system-ui, sans-serif" }}>{p.desc}</div>
                   </div>
                 </div>
               </div>
@@ -1230,7 +1230,7 @@ export default function App() {
 
   /* ─── MAIN CURRICULUM ─── */
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#040404", fontFamily: "'DM Mono', 'Courier New', monospace", color: "#fff", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100vw", background: "#040404", fontFamily: "Inter, system-ui, sans-serif", color: "#fff", overflow: "hidden" }}>
       <GlobalStyles />
       <Overlays />
       <CursorGlow />
@@ -1303,7 +1303,7 @@ export default function App() {
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   <span style={{ fontSize: "14px", color: active ? p.color : "#666", flexShrink: 0, fontFamily: "'DM Serif Display', serif" }}>{p.icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "12px", color: active ? "#fff" : "#c0c0c0", fontWeight: active ? "700" : "400", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <div style={{ fontSize: "12px", color: active ? "#fff" : "#c0c0c0", fontWeight: active ? "600" : "400", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontFamily: "Inter, sans-serif" }}>
                       <span style={{ color: active ? p.color : "#888", marginRight: "4px" }}>P{String(p.id).padStart(2,"0")}</span>{p.shortTitle}
                     </div>
                     <div style={{ marginTop: "3px", height: "1px", background: "#111" }}>
@@ -1343,7 +1343,7 @@ export default function App() {
       </aside>
 
       {/* MAIN */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+      <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
 
         {/* Top bar */}
         <div style={{ padding: isMobile ? "12px 14px" : "14px 28px", borderBottom: "1px solid #0d0d0d", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#040404", flexShrink: 0, gap: "12px" }}>
@@ -1357,7 +1357,7 @@ export default function App() {
             </div>
 
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: isMobile ? "13px" : "15px", fontWeight: "500", color: "#f0f0f0", lineHeight: "1.2", fontFamily: "'DM Serif Display', serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div style={{ fontSize: isMobile ? "14px" : "17px", fontWeight: "600", color: "#f8f8f8", lineHeight: "1.2", fontFamily: "Inter, system-ui, sans-serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {isMobile ? phase.shortTitle : phase.title}
               </div>
               <div style={{ fontSize: "10px", color: "#888", marginTop: "3px", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: "6px" }}>
@@ -1429,7 +1429,7 @@ export default function App() {
         </div>
 
         {/* Tab Content */}
-        <div ref={contentRef} key={`${activePhase}-${activeTab}`} style={{ flex: 1, overflowY: "auto", padding: isMobile ? "22px 16px" : "28px 36px" }}>
+        <div ref={contentRef} key={`${activePhase}-${activeTab}`} style={{ flex: 1, overflowY: "auto", padding: isMobile ? "20px 16px" : "32px 48px" }}>
 
           {/* ── OVERVIEW ── */}
           {activeTab === "overview" && (
@@ -1437,13 +1437,13 @@ export default function App() {
               {/* Hero quote */}
               <div className="fade-up" style={{ padding: "24px 28px", marginBottom: "28px", background: phase.darkColor, borderLeft: `3px solid ${phase.color}`, borderRadius: "0 10px 10px 0", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", top: "50%", right: "20px", transform: "translateY(-50%)", fontSize: "80px", color: phase.color, opacity: 0.05, fontFamily: "'DM Serif Display', serif", lineHeight: 1, pointerEvents: "none", userSelect: "none" }}>{phase.icon}</div>
-                <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: isMobile ? "22px" : "30px", color: phase.color, fontStyle: "italic", lineHeight: "1.35", letterSpacing: "-0.02em" }}>"{phase.tagline}"</div>
+                <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: isMobile ? "22px" : "34px", color: phase.color, fontStyle: "italic", lineHeight: "1.3", letterSpacing: "-0.02em" }}>"{phase.tagline}"</div>
                 <div style={{ marginTop: "10px", display: "flex", gap: "10px", alignItems: "center" }}>
-                  <span style={{ fontSize: "10px", color: "#888", letterSpacing: "0.1em" }}>{phase.weeks}</span>
+                  <span style={{ fontSize: "12px", color: "#999", letterSpacing: "0.04em", fontFamily: "Inter, sans-serif" }}>{phase.weeks}</span>
                   <span style={{ color: "#333" }}>·</span>
-                  <span style={{ fontSize: "9px", color: dm.color, letterSpacing: "0.12em" }}>{phase.difficulty.toUpperCase()}</span>
+                  <span style={{ fontSize: "11px", color: dm.color, letterSpacing: "0.08em", fontFamily: "Inter, sans-serif", fontWeight: "600" }}>{phase.difficulty.toUpperCase()}</span>
                   <span style={{ color: "#333" }}>·</span>
-                  <span style={{ fontSize: "9px", color: "#777" }}>{prog.done}/{prog.total} COMPLETED</span>
+                  <span style={{ fontSize: "11px", color: "#888", fontFamily: "Inter, sans-serif" }}>{prog.done}/{prog.total} completed</span>
                 </div>
               </div>
 
@@ -1464,20 +1464,20 @@ export default function App() {
                 })}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: (isMobile || isTablet) ? "1fr" : "1fr 1fr", gap: "28px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "32px" }}>
                 <div>
                   <SectionLabel color={phase.color}>Build Projects</SectionLabel>
                   {phase.projects.map((proj, i) => (
                     <div key={i} className="fade-up" style={{ animationDelay: `${i * 80}ms`, marginBottom: "14px", padding: "18px 20px", background: "#070707", border: `1px solid #141414`, borderRadius: "4px" }}>
                       <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "12px" }}>
                         <div style={{ width: "26px", height: "26px", background: phase.darkColor, border: `1px solid ${phase.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: phase.color, fontWeight: "700", flexShrink: 0 }}>{proj.letter}</div>
-                        <span style={{ fontSize: "13px", color: "#ddd", fontFamily: "'DM Serif Display', serif" }}>{proj.name}</span>
+                        <span style={{ fontSize: "15px", color: "#f0f0f0", fontFamily: "Inter, sans-serif", fontWeight: "600" }}>{proj.name}</span>
                       </div>
                       <div style={{ paddingLeft: "38px" }}>
                         {proj.items.map((item, j) => (
                           <div key={j} style={{ display: "flex", gap: "10px", padding: "5px 0", borderBottom: j < proj.items.length - 1 ? "1px solid #0c0c0c" : "none" }}>
                             <span style={{ color: phase.color + "77", flexShrink: 0, marginTop: "1px", fontSize: "10px" }}>→</span>
-                            <span style={{ fontSize: "12px", color: "#999", lineHeight: "1.55", fontFamily: "'DM Serif Display', serif" }}>{item}</span>
+                            <span style={{ fontSize: "14px", color: "#c0c0c0", lineHeight: "1.65", fontFamily: "Inter, sans-serif" }}>{item}</span>
                           </div>
                         ))}
                       </div>
@@ -1508,7 +1508,7 @@ export default function App() {
                           cursor: "pointer", textAlign: "left", fontFamily: "inherit", transition: "all 0.15s",
                         }}>
                           <div style={{ fontSize: "10px", color: i === activePhase ? p.color : "#666", fontWeight: "700", fontFamily: "'DM Serif Display', serif" }}>{p.icon} P{p.id}</div>
-                          <div style={{ fontSize: "9px", color: i === activePhase ? "#888" : "#666", marginTop: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.shortTitle}</div>
+                          <div style={{ fontSize: "10px", color: i === activePhase ? "#aaa" : "#777", marginTop: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontFamily: "Inter, sans-serif" }}>{p.shortTitle}</div>
                           {ppct > 0 && <div style={{ marginTop: "4px", height: "1px", width: `${ppct}%`, background: p.color + "88" }} />}
                         </button>
                       );
@@ -1526,7 +1526,7 @@ export default function App() {
                 <span style={{ fontSize: "12px", color: "#C8F542", flexShrink: 0 }}>✓</span>
                 <div>
                   <div style={{ fontSize: "9px", color: "#C8F542", fontWeight: "700", marginBottom: "3px", letterSpacing: "0.12em" }}>100% FREE — ALL PAYWALLS REMOVED</div>
-                  <div style={{ fontSize: "12px", color: "#888", lineHeight: "1.6", fontFamily: "'DM Serif Display', serif" }}>Coursera paid auditing replaced with MIT OCW, YouTube lecture series, and open university courses. Every course marked FREE is genuinely free.</div>
+                  <div style={{ fontSize: "13px", color: "#999", lineHeight: "1.65", fontFamily: "Inter, system-ui, sans-serif" }}>Coursera paid auditing replaced with MIT OCW, YouTube lecture series, and open university courses. Every course marked FREE is genuinely free.</div>
                 </div>
               </div>
 
@@ -1578,7 +1578,7 @@ export default function App() {
                   <div style={{ display: "flex", gap: "14px", alignItems: "center", marginBottom: "18px" }}>
                     <div style={{ width: "34px", height: "34px", background: phase.darkColor, border: `1px solid ${phase.color}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", color: phase.color, fontWeight: "800", flexShrink: 0 }}>{proj.letter}</div>
                     <div>
-                      <div style={{ fontSize: "15px", color: "#ddd", fontFamily: "'DM Serif Display', serif" }}>{proj.name}</div>
+                      <div style={{ fontSize: "16px", color: "#f0f0f0", fontFamily: "Inter, sans-serif", fontWeight: "600" }}>{proj.name}</div>
                       <div style={{ fontSize: "9px", color: "#777", marginTop: "2px", letterSpacing: "0.15em" }}>PROJECT {String(i + 1).padStart(2, "0")}</div>
                     </div>
                   </div>
@@ -1605,7 +1605,7 @@ export default function App() {
                 </div>
                 <ProgressRing pct={phasePct} size={60} stroke={3} color={phase.color} label={phasePct} />
                 <div>
-                  <div style={{ fontSize: "20px", color: "#f0f0f0", fontFamily: "'DM Serif Display', serif", marginBottom: "5px" }}>
+                  <div style={{ fontSize: "20px", color: "#f0f0f0", fontFamily: "Inter, system-ui, sans-serif", fontWeight: "600", marginBottom: "5px" }}>
                     {phasePct === 0 ? "Ready to begin?" : phasePct < 30 ? "You've started — don't stop." : phasePct < 60 ? "You're in the zone." : phasePct < 100 ? "Almost there — finish strong." : "Phase complete. 🎯"}
                   </div>
                   <div style={{ fontSize: "11px", color: "#888", display: "flex", gap: "12px", alignItems: "center" }}>
@@ -1645,7 +1645,7 @@ export default function App() {
                 <div key={i} className="fade-up" style={{ animationDelay: `${i * 70}ms`, padding: "18px 22px", marginBottom: "8px", background: "#080808", borderLeft: `3px solid ${phase.color}`, borderRadius: "0 8px 8px 0", transition: "background 0.15s" }}>
                   <div style={{ display: "flex", gap: "14px", alignItems: "flex-start" }}>
                     <div style={{ fontSize: "8px", color: phase.color, background: phase.darkColor, border: `1px solid ${phase.color}33`, padding: "3px 8px", flexShrink: 0, marginTop: "3px", fontWeight: "900" }}>#{String(i + 1).padStart(2, "0")}</div>
-                    <span style={{ fontSize: "15px", color: "#e0e0e0", lineHeight: "1.75", fontFamily: "'DM Serif Display', serif" }}>{c}</span>
+                    <span style={{ fontSize: "15px", color: "#e0e0e0", lineHeight: "1.75", fontFamily: "Inter, system-ui, sans-serif" }}>{c}</span>
                   </div>
                 </div>
               ))}
@@ -1662,7 +1662,7 @@ export default function App() {
                 ].map(([type, desc, time], i, arr) => (
                   <div key={type} style={{ display: "flex", alignItems: "center", padding: "13px 18px", gap: "14px", borderBottom: i < arr.length - 1 ? "1px solid #0c0c0c" : "none" }}>
                     <div style={{ fontSize: "8px", color: "#000", background: phase.color, padding: "3px 9px", flexShrink: 0, fontWeight: "900", letterSpacing: "0.1em" }}>{type.toUpperCase()}</div>
-                    <div style={{ flex: 1, fontSize: "13px", color: "#aaa", fontFamily: "'DM Serif Display', serif" }}>{desc}</div>
+                    <div style={{ flex: 1, fontSize: "14px", color: "#bbb", fontFamily: "Inter, system-ui, sans-serif" }}>{desc}</div>
                     <div style={{ fontSize: "10px", color: "#666", flexShrink: 0 }}>{time}</div>
                   </div>
                 ))}
