@@ -9,7 +9,8 @@ const GlobalStyles = () => {
     style.textContent = `
       @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Inter:wght@400;500;600;700&display=swap');
       
-      html, body, #root { margin: 0 !important; padding: 0 !important; width: 100%; height: 100%; overflow: hidden; }
+      html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; overflow-x: hidden !important; }
+      #root { margin: 0; padding: 0; width: 100%; max-width: 100%; overflow: hidden; }
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       
       ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -994,13 +995,13 @@ export default function App() {
 
   if (view === "landing") {
     return (
-      <div style={{ minHeight: "100vh", width: "100vw", margin: 0, padding: 0, background: "#040404", fontFamily: "Inter, system-ui, sans-serif", color: "#fff", position: "relative", overflow: "hidden" }}>
+      <div style={{ minHeight: "100vh", width: "100%", maxWidth: "100%", margin: 0, padding: 0, background: "#040404", fontFamily: "Inter, system-ui, sans-serif", color: "#fff", position: "relative", overflow: "hidden" }}>
         <GlobalStyles />
         <Overlays />
         <CursorGlow />
 
         {/* Grid */}
-        <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, backgroundImage: "linear-gradient(#0a0a0a 1px, transparent 1px), linear-gradient(90deg, #0a0a0a 1px, transparent 1px)", backgroundSize: "80px 80px" }} />
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, pointerEvents: "none", zIndex: 0, backgroundImage: "linear-gradient(#0a0a0a 1px, transparent 1px), linear-gradient(90deg, #0a0a0a 1px, transparent 1px)", backgroundSize: "80px 80px" }} />
 
         {/* Multi-orb bg */}
         {phases.map((p, i) => (
@@ -1017,7 +1018,7 @@ export default function App() {
         {/* Nav */}
         <nav style={{
           position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
-          padding: isMobile ? "14px 20px" : "16px 48px",
+          padding: isMobile ? "14px 20px" : "14px 40px",
           display: "flex", justifyContent: "space-between", alignItems: "center",
           borderBottom: "1px solid #0f0f0f", background: "#04040499",
           backdropFilter: "blur(24px)",
@@ -1045,7 +1046,7 @@ export default function App() {
         <TickerTape />
 
         {/* Hero content */}
-        <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: isMobile ? "110px 24px 80px" : "120px 48px 80px", textAlign: "center" }}>
+        <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: isMobile ? "110px 20px 80px" : "120px 5% 80px", textAlign: "center" }}>
 
           <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", marginBottom: "36px" }} className="fade-up">
             <div style={{ width: "28px", height: "1px", background: "#C8F542" }} />
@@ -1054,10 +1055,10 @@ export default function App() {
           </div>
 
           {/* Giant typewriter headline */}
-          <div style={{ maxWidth: "960px", marginBottom: "32px" }} className="fade-up stagger-1">
+          <div style={{ width: "100%", maxWidth: "min(960px, 92vw)", marginBottom: "32px" }} className="fade-up stagger-1">
             <h1 style={{
               fontFamily: "'DM Serif Display', Georgia, 'Times New Roman', serif",
-              fontSize: isMobile ? "clamp(40px, 11vw, 64px)" : "clamp(60px, 6.5vw, 100px)",
+              fontSize: "clamp(36px, 6vw, 96px)",
               fontWeight: "400", lineHeight: "1.02", letterSpacing: "-0.025em", color: "#f0f0f0",
               textAlign: "center",
             }}>
@@ -1072,7 +1073,7 @@ export default function App() {
           </div>
 
           {/* Subtitle */}
-          <p className="fade-up stagger-2" style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: isMobile ? "16px" : "19px", color: "#999", lineHeight: "1.7", maxWidth: "520px", marginBottom: "40px", textAlign: "center" }}>
+          <p className="fade-up stagger-2" style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: isMobile ? "16px" : "19px", color: "#999", lineHeight: "1.7", width: "100%", maxWidth: "520px", marginBottom: "40px", textAlign: "center" }}>
             8 phases. 100% free. MIT · CMU · Stanford · Berkeley.
             No Coursera paywalls. Build real systems from nothing.
           </p>
@@ -1131,7 +1132,7 @@ export default function App() {
           </div>
 
           {/* Stats */}
-          <div className="fade-up stagger-4" style={{ display: "flex", gap: isMobile ? "28px" : "52px", marginBottom: "48px", flexWrap: "wrap" }}>
+          <div className="fade-up stagger-4" style={{ display: "flex", gap: isMobile ? "28px" : "52px", marginBottom: "48px", flexWrap: "wrap", justifyContent: "center" }}>
             {[
               { n: "8", label: "Phases" },
               { n: totalPossible + "+", label: "Mastery Tasks" },
@@ -1231,7 +1232,7 @@ export default function App() {
 
   /* ─── MAIN CURRICULUM ─── */
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100vw", background: "#040404", fontFamily: "Inter, system-ui, sans-serif", color: "#fff", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100%", maxWidth: "100%", background: "#040404", fontFamily: "Inter, system-ui, sans-serif", color: "#fff", overflow: "hidden" }}>
       <GlobalStyles />
       <Overlays />
       <CursorGlow />
