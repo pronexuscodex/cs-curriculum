@@ -1,5 +1,365 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
+// ============================================================
+// AUTH SYSTEM ADDITIONS
+// Place these BEFORE the main App() function
+// ============================================================
+
+/* ═══════════════════════════════════════════════════════════════
+   AUTH UTILITIES
+═══════════════════════════════════════════════════════════════ */
+const AUTH_KEY = "nexuscodex_users";
+const SESSION_KEY = "nexuscodex_session";
+
+function getUsers() {
+  try { return JSON.parse(localStorage.getItem(AUTH_KEY) || "{}"); } catch { return {}; }
+}
+function saveUsers(users) {
+  localStorage.setItem(AUTH_KEY, JSON.stringify(users));
+}
+function getSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch { return null; }
+}
+function saveSession(username) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(username));
+}
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+function getUserData(username) {
+  const users = getUsers();
+  return users[username] || null;
+}
+function saveUserData(username, data) {
+  const users = getUsers();
+  users[username] = { ...users[username], ...data };
+  saveUsers(users);
+}
+function hashSimple(str) {
+  // Simple deterministic hash — not for real prod, but fine for local storage
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return h.toString(36);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   AUTH MODAL COMPONENT
+═══════════════════════════════════════════════════════════════ */
+function AuthModal({ onAuth, onClose }) {
+  const [mode, setMode] = useState("login"); // "login" | "signup"
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
+  const usernameRef = useRef(null);
+
+  useEffect(() => { usernameRef.current?.focus(); }, [mode]);
+
+  const handleSubmit = () => {
+    setError(""); setSuccess("");
+    if (!username.trim() || !password.trim()) { setError("Username and password are required."); return; }
+    if (password.length < 4) { setError("Password must be at least 4 characters."); return; }
+
+    setLoading(true);
+    setTimeout(() => {
+      const users = getUsers();
+      if (mode === "signup") {
+        if (users[username.toLowerCase()]) { setError("Username already taken."); setLoading(false); return; }
+        const newUser = {
+          username: username.toLowerCase(),
+          displayName: displayName.trim() || username,
+          passwordHash: hashSimple(password),
+          createdAt: Date.now(),
+          checkedItems: {},
+          streak: 0,
+          lastActive: null,
+          totalSessions: 0,
+        };
+        saveUsers({ ...users, [username.toLowerCase()]: newUser });
+        saveSession(username.toLowerCase());
+        setSuccess("Account created! Welcome to NexusCodex.");
+        setTimeout(() => onAuth(username.toLowerCase()), 600);
+      } else {
+        const user = users[username.toLowerCase()];
+        if (!user) { setError("No account found with that username."); setLoading(false); return; }
+        if (user.passwordHash !== hashSimple(password)) { setError("Incorrect password."); setLoading(false); return; }
+        saveSession(username.toLowerCase());
+        onAuth(username.toLowerCase());
+      }
+      setLoading(false);
+    }, 300);
+  };
+
+  const handleKeyDown = (e) => { if (e.key === "Enter") handleSubmit(); };
+
+  const inputStyle = {
+    width: "100%", padding: "11px 14px", background: "#0a0a0a",
+    border: "1px solid #222", outline: "none", color: "#e0e0e0",
+    fontSize: "13px", fontFamily: "'DM Mono', monospace",
+    borderRadius: "2px", transition: "border-color 0.15s",
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div className="cmd-overlay" onClick={onClose} style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)",
+      zIndex: 3000, display: "flex", alignItems: "center", justifyContent: "center",
+      backdropFilter: "blur(12px)",
+    }}>
+      <div className="cmd-modal" onClick={e => e.stopPropagation()} style={{
+        width: "min(420px, 90vw)", background: "#060606",
+        border: "1px solid #1e1e1e", boxShadow: "0 40px 100px rgba(0,0,0,0.9), 0 0 0 1px #C8F54218",
+      }}>
+        {/* Header */}
+        <div style={{ padding: "22px 24px 16px", borderBottom: "1px solid #111", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ width: "24px", height: "24px", background: "linear-gradient(135deg,#C8F542,#42C8F5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "900", color: "#000" }}>N</div>
+            <span style={{ fontSize: "9px", color: "#C8F542", letterSpacing: "0.28em" }}>NEXUSCODEX</span>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: "18px", lineHeight: 1 }}>×</button>
+        </div>
+
+        {/* Mode toggle */}
+        <div style={{ display: "flex", borderBottom: "1px solid #0d0d0d" }}>
+          {["login", "signup"].map(m => (
+            <button key={m} onClick={() => { setMode(m); setError(""); setSuccess(""); }} style={{
+              flex: 1, padding: "13px 0", background: "none", border: "none",
+              borderBottom: `2px solid ${mode === m ? "#C8F542" : "transparent"}`,
+              color: mode === m ? "#C8F542" : "#888",
+              cursor: "pointer", fontSize: "9px", letterSpacing: "0.22em",
+              textTransform: "uppercase", fontFamily: "inherit", transition: "all 0.15s",
+            }}>{m === "login" ? "Sign In" : "Create Account"}</button>
+          ))}
+        </div>
+
+        {/* Form */}
+        <div style={{ padding: "24px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div>
+              <div style={{ fontSize: "9px", color: "#555", letterSpacing: "0.15em", marginBottom: "7px" }}>USERNAME</div>
+              <input ref={usernameRef} value={username} onChange={e => setUsername(e.target.value)} onKeyDown={handleKeyDown}
+                placeholder="your_handle" style={inputStyle}
+                onFocus={e => e.target.style.borderColor = "#C8F54266"}
+                onBlur={e => e.target.style.borderColor = "#222"} />
+            </div>
+
+            {mode === "signup" && (
+              <div>
+                <div style={{ fontSize: "9px", color: "#555", letterSpacing: "0.15em", marginBottom: "7px" }}>DISPLAY NAME <span style={{ color: "#333" }}>(optional)</span></div>
+                <input value={displayName} onChange={e => setDisplayName(e.target.value)} onKeyDown={handleKeyDown}
+                  placeholder="Your Name" style={inputStyle}
+                  onFocus={e => e.target.style.borderColor = "#C8F54266"}
+                  onBlur={e => e.target.style.borderColor = "#222"} />
+              </div>
+            )}
+
+            <div>
+              <div style={{ fontSize: "9px", color: "#555", letterSpacing: "0.15em", marginBottom: "7px" }}>PASSWORD</div>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={handleKeyDown}
+                placeholder="••••••••" style={inputStyle}
+                onFocus={e => e.target.style.borderColor = "#C8F54266"}
+                onBlur={e => e.target.style.borderColor = "#222"} />
+            </div>
+          </div>
+
+          {error && (
+            <div style={{ marginTop: "14px", padding: "9px 13px", background: "#1a0400", border: "1px solid #F5544233", fontSize: "11px", color: "#F55442", fontFamily: "'DM Mono', monospace" }}>
+              ⚠ {error}
+            </div>
+          )}
+          {success && (
+            <div style={{ marginTop: "14px", padding: "9px 13px", background: "#0d1a00", border: "1px solid #C8F54233", fontSize: "11px", color: "#C8F542", fontFamily: "'DM Mono', monospace" }}>
+              ✓ {success}
+            </div>
+          )}
+
+          <button onClick={handleSubmit} disabled={loading} style={{
+            width: "100%", marginTop: "18px", padding: "13px",
+            background: loading ? "#1a2400" : "#C8F542", color: "#000",
+            border: "none", cursor: loading ? "default" : "pointer",
+            fontSize: "10px", fontWeight: "900", letterSpacing: "0.2em",
+            textTransform: "uppercase", fontFamily: "inherit", transition: "all 0.2s",
+            opacity: loading ? 0.7 : 1,
+          }}
+            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = "#d4ff44"; }}
+            onMouseLeave={e => { if (!loading) e.currentTarget.style.background = "#C8F542"; }}
+          >
+            {loading ? "..." : mode === "login" ? "Sign In →" : "Create Account →"}
+          </button>
+
+          <div style={{ marginTop: "16px", textAlign: "center" }}>
+            <span style={{ fontSize: "10px", color: "#555" }}>
+              {mode === "login" ? "No account? " : "Already registered? "}
+            </span>
+            <button onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }} style={{
+              background: "none", border: "none", color: "#C8F54288", cursor: "pointer",
+              fontSize: "10px", fontFamily: "inherit", textDecoration: "underline",
+            }}>{mode === "login" ? "Create one" : "Sign in"}</button>
+          </div>
+
+          {mode === "login" && (
+            <div style={{ marginTop: "8px", textAlign: "center" }}>
+              <button onClick={() => onAuth(null)} style={{
+                background: "none", border: "none", color: "#333", cursor: "pointer",
+                fontSize: "9px", fontFamily: "inherit", letterSpacing: "0.1em",
+              }}>Continue as Guest (progress not saved)</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   USER PROFILE PANEL COMPONENT
+═══════════════════════════════════════════════════════════════ */
+function ProfilePanel({ username, checkedItems, phases, phaseProgress, onLogout, onClose }) {
+  const user = username ? getUserData(username) : null;
+  const displayName = user?.displayName || username || "Guest";
+  const createdAt = user?.createdAt ? new Date(user.createdAt) : null;
+  const totalPossible = phases.reduce((a, p) =>
+    a + p.checklist.theory.length + p.checklist.programming.length + p.checklist.engineering.length, 0);
+  const totalChecked = Object.values(checkedItems).filter(Boolean).length;
+  const globalPct = Math.round((totalChecked / totalPossible) * 100);
+
+  // Find best phase
+  let bestPhase = null, bestPct = 0;
+  phases.forEach((p, i) => {
+    const pp = phaseProgress(i);
+    const pct = pp.total > 0 ? Math.round((pp.done / pp.total) * 100) : 0;
+    if (pct > bestPct) { bestPct = pct; bestPhase = p; }
+  });
+
+  // Count completed phases
+  const completedPhases = phases.filter((p, i) => {
+    const pp = phaseProgress(i);
+    return pp.total > 0 && pp.done === pp.total;
+  });
+
+  const avatarLetter = displayName[0]?.toUpperCase() || "?";
+  const avatarColor = username ? "#C8F542" : "#555";
+
+  return (
+    <div className="cmd-overlay" onClick={onClose} style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
+      zIndex: 3000, display: "flex", alignItems: "flex-start", justifyContent: "flex-end",
+      backdropFilter: "blur(8px)", paddingTop: "60px", paddingRight: "16px",
+    }}>
+      <div className="cmd-modal" onClick={e => e.stopPropagation()} style={{
+        width: "min(340px, 92vw)", background: "#050505",
+        border: "1px solid #1a1a1a", boxShadow: "0 32px 80px rgba(0,0,0,0.9), 0 0 0 1px #C8F54211",
+      }}>
+        {/* Avatar + name */}
+        <div style={{ padding: "22px 20px 18px", borderBottom: "1px solid #0e0e0e" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <div style={{ width: "44px", height: "44px", background: username ? "#111a00" : "#111", border: `2px solid ${avatarColor}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", color: avatarColor, fontFamily: "'DM Serif Display', serif", fontWeight: "900", flexShrink: 0, position: "relative" }}>
+              {avatarLetter}
+              {username && <div style={{ position: "absolute", bottom: 0, right: 0, width: "10px", height: "10px", borderRadius: "50%", background: "#C8F542", border: "2px solid #050505" }} />}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: "15px", color: "#f0f0f0", fontFamily: "Inter, sans-serif", fontWeight: "600", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{displayName}</div>
+              <div style={{ fontSize: "9px", color: "#555", letterSpacing: "0.15em", marginTop: "3px" }}>
+                {username ? `@${username}` : "GUEST MODE"}
+              </div>
+              {createdAt && <div style={{ fontSize: "9px", color: "#444", marginTop: "2px" }}>
+                Joined {createdAt.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+              </div>}
+            </div>
+            <button onClick={onClose} style={{ background: "none", border: "none", color: "#333", cursor: "pointer", fontSize: "16px" }}>×</button>
+          </div>
+        </div>
+
+        {/* Stats grid */}
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid #0e0e0e" }}>
+          <div style={{ fontSize: "8px", color: "#555", letterSpacing: "0.2em", marginBottom: "12px" }}>PROGRESS SUMMARY</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+            {[
+              { label: "Global", value: `${globalPct}%`, color: "#C8F542" },
+              { label: "Tasks", value: `${totalChecked}/${totalPossible}`, color: "#42C8F5" },
+              { label: "Phases Done", value: `${completedPhases.length}/${phases.length}`, color: "#A742F5" },
+            ].map(({ label, value, color }) => (
+              <div key={label} style={{ textAlign: "center", padding: "10px 6px", background: "#0a0a0a", border: "1px solid #141414" }}>
+                <div style={{ fontSize: "16px", color, fontFamily: "'DM Serif Display', serif", lineHeight: 1, marginBottom: "5px" }}>{value}</div>
+                <div style={{ fontSize: "7px", color: "#555", letterSpacing: "0.14em", textTransform: "uppercase" }}>{label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Phase breakdown */}
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid #0e0e0e", maxHeight: "180px", overflowY: "auto" }}>
+          <div style={{ fontSize: "8px", color: "#555", letterSpacing: "0.2em", marginBottom: "10px" }}>PHASE BREAKDOWN</div>
+          {phases.map((p, i) => {
+            const pp = phaseProgress(i);
+            const pct = pp.total > 0 ? Math.round((pp.done / pp.total) * 100) : 0;
+            return (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                <span style={{ fontSize: "12px", color: p.color, width: "18px", flexShrink: 0, fontFamily: "'DM Serif Display', serif" }}>{p.icon}</span>
+                <div style={{ flex: 1, height: "3px", background: "#111" }}>
+                  <div style={{ height: "100%", width: `${pct}%`, background: p.color, transition: "width 0.4s" }} />
+                </div>
+                <span style={{ fontSize: "9px", color: pct === 100 ? p.color : "#555", fontFamily: "'DM Mono', monospace", width: "32px", textAlign: "right" }}>
+                  {pct === 100 ? "✓" : `${pct}%`}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Best phase badge */}
+        {bestPhase && bestPct > 0 && (
+          <div style={{ padding: "12px 20px", borderBottom: "1px solid #0e0e0e" }}>
+            <div style={{ fontSize: "8px", color: "#555", letterSpacing: "0.2em", marginBottom: "8px" }}>STRONGEST PHASE</div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px", background: bestPhase.darkColor, border: `1px solid ${bestPhase.color}33` }}>
+              <span style={{ fontSize: "16px", color: bestPhase.color, fontFamily: "'DM Serif Display', serif" }}>{bestPhase.icon}</span>
+              <div>
+                <div style={{ fontSize: "12px", color: "#ddd", fontFamily: "Inter, sans-serif", fontWeight: "600" }}>{bestPhase.shortTitle}</div>
+                <div style={{ fontSize: "9px", color: bestPhase.color, marginTop: "2px" }}>{bestPct}% mastered</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div style={{ padding: "14px 20px", display: "flex", flexDirection: "column", gap: "8px" }}>
+          {!username && (
+            <button onClick={() => { onClose(); }} style={{
+              width: "100%", padding: "11px", background: "#C8F542", color: "#000",
+              border: "none", cursor: "pointer", fontSize: "9px", fontWeight: "900",
+              letterSpacing: "0.18em", textTransform: "uppercase", fontFamily: "inherit",
+            }}>Sign In to Save Progress</button>
+          )}
+          {username && (
+            <div style={{ padding: "9px 12px", background: "#0a0a0a", border: "1px solid #141414", display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#C8F542", flexShrink: 0 }} />
+              <span style={{ fontSize: "9px", color: "#777", letterSpacing: "0.1em" }}>Progress auto-saved to your account</span>
+            </div>
+          )}
+          {username && (
+            <button onClick={() => { onLogout(); onClose(); }} style={{
+              width: "100%", padding: "9px", background: "none",
+              border: "1px solid #1e1e1e", color: "#555", cursor: "pointer",
+              fontSize: "9px", letterSpacing: "0.15em", textTransform: "uppercase", fontFamily: "inherit",
+              transition: "all 0.15s",
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#F5544266"; e.currentTarget.style.color = "#F55442"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#1e1e1e"; e.currentTarget.style.color = "#555"; }}
+            >Sign Out</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
 /* ═══════════════════════════════════════════════════════════════
    INJECT GLOBAL CSS — animations, fonts, custom cursor, scrollbar
 ═══════════════════════════════════════════════════════════════ */
@@ -931,11 +1291,60 @@ export default function App() {
   const [sidebarTab, setSidebarTab] = useState("nav"); // "nav" | "timeline"
   const contentRef = useRef(null);
 
+  // ── AUTH STATE ──
+  const [currentUser, setCurrentUser] = useState(null); // null = guest, string = username
+  const [authOpen, setAuthOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Restore session on mount
+  useEffect(() => {
+    const session = getSession();
+    if (session) {
+      const userData = getUserData(session);
+      if (userData) {
+        setCurrentUser(session);
+        // Restore saved progress
+        if (userData.checkedItems && Object.keys(userData.checkedItems).length > 0) {
+          setCheckedItems(userData.checkedItems);
+        }
+      }
+    }
+    setAuthChecked(true);
+  }, []);
+
+  // Auto-save progress whenever checkedItems changes (if logged in)
+  useEffect(() => {
+    if (currentUser && authChecked) {
+      saveUserData(currentUser, {
+        checkedItems,
+        lastActive: Date.now(),
+      });
+    }
+  }, [checkedItems, currentUser, authChecked]);
+
+  const handleAuth = (username) => {
+    setAuthOpen(false);
+    if (username) {
+      setCurrentUser(username);
+      const userData = getUserData(username);
+      if (userData?.checkedItems && Object.keys(userData.checkedItems).length > 0) {
+        setCheckedItems(userData.checkedItems);
+      }
+    }
+  };
+
+  const handleLogout = () => {
+    clearSession();
+    setCurrentUser(null);
+    setCheckedItems({});
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const h = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setCmdOpen(c => !c); }
-      if (e.key === "Escape") setCmdOpen(false);
+      if (e.key === "Escape") { setCmdOpen(false); setAuthOpen(false); setProfileOpen(false); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
@@ -1028,7 +1437,7 @@ export default function App() {
             <div style={{ width: "26px", height: "26px", background: "linear-gradient(135deg,#C8F542,#42C8F5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "900", color: "#000" }}>N</div>
             <span style={{ fontSize: "10px", color: "#888", letterSpacing: "0.22em" }}>NEXUSCODEX</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             {!isMobile && ["MIT", "CMU", "Stanford", "Berkeley", "Harvard"].map(s => (
               <span key={s} style={{ fontSize: "9px", color: "#888", padding: "3px 9px", border: "1px solid #222", letterSpacing: "0.12em" }}>{s}</span>
             ))}
@@ -1037,11 +1446,39 @@ export default function App() {
               padding: "6px 12px", cursor: "pointer", fontSize: "9px",
               letterSpacing: "0.12em", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "6px",
             }}>
-              <span>⌘K</span><span style={{ color: "#333" }}>SEARCH</span>
+              <span>⌘K</span>{!isMobile && <span style={{ color: "#333" }}>SEARCH</span>}
             </button>
+            {/* Auth button */}
+            {currentUser ? (
+              <button onClick={() => setProfileOpen(true)} style={{
+                display: "flex", alignItems: "center", gap: "8px",
+                background: "#0d0d0d", border: "1px solid #C8F54233", color: "#C8F542",
+                padding: "6px 12px", cursor: "pointer", fontSize: "9px",
+                letterSpacing: "0.12em", fontFamily: "inherit", transition: "all 0.15s",
+              }}
+                onMouseEnter={e => e.currentTarget.style.background = "#111a00"}
+                onMouseLeave={e => e.currentTarget.style.background = "#0d0d0d"}
+              >
+                <div style={{ width: "18px", height: "18px", background: "#111a00", border: "1px solid #C8F54244", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "#C8F542", fontWeight: "900" }}>
+                  {(getUserData(currentUser)?.displayName || currentUser)[0]?.toUpperCase()}
+                </div>
+                {!isMobile && <span>{getUserData(currentUser)?.displayName || currentUser}</span>}
+              </button>
+            ) : (
+              <button onClick={() => setAuthOpen(true)} style={{
+                background: "transparent", border: "1px solid #C8F54233", color: "#C8F54288",
+                padding: "6px 14px", cursor: "pointer", fontSize: "9px",
+                letterSpacing: "0.15em", fontFamily: "inherit", transition: "all 0.15s",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#C8F54266"; e.currentTarget.style.color = "#C8F542"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#C8F54233"; e.currentTarget.style.color = "#C8F54288"; }}
+              >SIGN IN</button>
+            )}
           </div>
         </nav>
 
+        {authOpen && <AuthModal onAuth={handleAuth} onClose={() => setAuthOpen(false)} />}
+        {profileOpen && <ProfilePanel username={currentUser} checkedItems={checkedItems} phases={phases} phaseProgress={phaseProgress} onLogout={handleLogout} onClose={() => setProfileOpen(false)} />}
         {cmdOpen && <CommandPalette phases={phases} onPhase={goPhase} onClose={() => { setCmdOpen(false); if (view === "landing") setView("landing"); }} checkedItems={checkedItems} />}
 
         <TickerTape />
@@ -1239,6 +1676,8 @@ export default function App() {
       <CursorGlow />
 
       {cmdOpen && <CommandPalette phases={phases} onPhase={goPhase} onClose={() => setCmdOpen(false)} checkedItems={checkedItems} />}
+      {authOpen && <AuthModal onAuth={handleAuth} onClose={() => setAuthOpen(false)} />}
+      {profileOpen && <ProfilePanel username={currentUser} checkedItems={checkedItems} phases={phases} phaseProgress={phaseProgress} onLogout={handleLogout} onClose={() => setProfileOpen(false)} />}
 
       {/* SIDEBAR */}
       <aside style={{
@@ -1324,8 +1763,43 @@ export default function App() {
 
         {/* Sidebar footer */}
         <div style={{ padding: "12px 14px", borderTop: "1px solid #0c0c0c", flexShrink: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
+          {/* User profile card */}
+          {currentUser ? (
+            <button onClick={() => setProfileOpen(true)} style={{
+              width: "100%", padding: "10px 12px", background: "#0a0a0a",
+              border: "1px solid #C8F54222", cursor: "pointer", fontFamily: "inherit",
+              display: "flex", alignItems: "center", gap: "10px", transition: "all 0.15s", textAlign: "left",
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#C8F54244"; e.currentTarget.style.background = "#111a00"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#C8F54222"; e.currentTarget.style.background = "#0a0a0a"; }}
+            >
+              <div style={{ width: "26px", height: "26px", background: "#111a00", border: "1px solid #C8F54244", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: "#C8F542", fontWeight: "900", flexShrink: 0, position: "relative" }}>
+                {(getUserData(currentUser)?.displayName || currentUser)[0]?.toUpperCase()}
+                <div style={{ position: "absolute", bottom: "-2px", right: "-2px", width: "7px", height: "7px", borderRadius: "50%", background: "#C8F542", border: "1px solid #050505" }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "11px", color: "#d0d0d0", fontFamily: "Inter, sans-serif", fontWeight: "600", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{getUserData(currentUser)?.displayName || currentUser}</div>
+                <div style={{ fontSize: "8px", color: "#C8F54288", letterSpacing: "0.1em", marginTop: "2px" }}>✓ PROGRESS SAVED</div>
+              </div>
+            </button>
+          ) : (
+            <button onClick={() => setAuthOpen(true)} style={{
+              width: "100%", padding: "10px 12px", background: "#0a0a0a",
+              border: "1px solid #222", cursor: "pointer", fontFamily: "inherit",
+              display: "flex", alignItems: "center", gap: "10px", transition: "all 0.15s",
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#C8F54244"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#222"; }}
+            >
+              <div style={{ width: "26px", height: "26px", background: "#111", border: "1px solid #2a2a2a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", color: "#444", flexShrink: 0 }}>?</div>
+              <div>
+                <div style={{ fontSize: "11px", color: "#888", fontFamily: "Inter, sans-serif" }}>Guest Mode</div>
+                <div style={{ fontSize: "8px", color: "#555", letterSpacing: "0.08em", marginTop: "2px" }}>Sign in to save progress</div>
+              </div>
+            </button>
+          )}
           <button onClick={() => setCmdOpen(true)} style={{
-            width: "100%", padding: "9px", background: "#0a0a0a", border: "1px solid #181818",
+            width: "100%", padding: "9px", background: "none", border: "1px solid #181818",
             color: "#777", cursor: "pointer", fontSize: "8px", letterSpacing: "0.18em",
             textTransform: "uppercase", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
             transition: "all 0.15s",
@@ -1390,6 +1864,29 @@ export default function App() {
 
             <span style={{ fontSize: "8px", padding: "3px 9px", background: dm.bg, color: dm.color, border: `1px solid ${dm.color}33`, letterSpacing: "0.12em", fontWeight: "600", textTransform: "uppercase" }}>{phase.difficulty}</span>
             <ProgressRing pct={phasePct} size={32} stroke={2} color={phase.color} label={phasePct} />
+            {/* User avatar / sign in */}
+            {currentUser ? (
+              <button onClick={() => setProfileOpen(true)} title={`Profile: ${getUserData(currentUser)?.displayName || currentUser}`} style={{
+                width: "32px", height: "32px", background: "#111a00",
+                border: "1px solid #C8F54244", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "12px", color: "#C8F542", fontWeight: "900",
+                fontFamily: "inherit", transition: "all 0.15s", flexShrink: 0,
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#1a2a00"; e.currentTarget.style.borderColor = "#C8F54288"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#111a00"; e.currentTarget.style.borderColor = "#C8F54244"; }}
+              >{(getUserData(currentUser)?.displayName || currentUser)[0]?.toUpperCase()}</button>
+            ) : (
+              <button onClick={() => setAuthOpen(true)} title="Sign in to save progress" style={{
+                padding: "0 10px", height: "32px", background: "none",
+                border: "1px solid #C8F54222", cursor: "pointer",
+                fontSize: "8px", color: "#C8F54266", letterSpacing: "0.15em",
+                fontFamily: "inherit", transition: "all 0.15s", flexShrink: 0, whiteSpace: "nowrap",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#C8F54266"; e.currentTarget.style.color = "#C8F542"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#C8F54222"; e.currentTarget.style.color = "#C8F54266"; }}
+              >LOGIN</button>
+            )}
           </div>
         </div>
 
@@ -1601,6 +2098,27 @@ export default function App() {
           {/* ── MASTERY ── */}
           {activeTab === "mastery" && (
             <div>
+              {/* Guest mode warning */}
+              {!currentUser && (
+                <div className="fade-up" style={{ display: "flex", alignItems: "center", gap: "14px", padding: "12px 18px", marginBottom: "20px", background: "#0d0d00", border: "1px solid #C8F54222", borderLeft: "3px solid #C8F54266" }}>
+                  <span style={{ fontSize: "14px", color: "#C8F54266" }}>⚠</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "11px", color: "#C8F54299", fontWeight: "600", marginBottom: "3px" }}>Guest Mode — Progress not saved</div>
+                    <div style={{ fontSize: "10px", color: "#666" }}>Your checkmarks will be lost when you close the tab.</div>
+                  </div>
+                  <button onClick={() => setAuthOpen(true)} style={{
+                    padding: "6px 14px", background: "#C8F542", color: "#000",
+                    border: "none", cursor: "pointer", fontSize: "8px", fontWeight: "900",
+                    letterSpacing: "0.18em", fontFamily: "inherit", flexShrink: 0,
+                  }}>SAVE →</button>
+                </div>
+              )}
+              {currentUser && (
+                <div className="fade-up" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 14px", marginBottom: "20px", background: "#060f00", border: "1px solid #C8F54218" }}>
+                  <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#C8F542", flexShrink: 0 }} />
+                  <span style={{ fontSize: "9px", color: "#C8F54288", letterSpacing: "0.1em" }}>Progress auto-saved to <span style={{ color: "#C8F542" }}>{getUserData(currentUser)?.displayName || currentUser}</span></span>
+                </div>
+              )}
               {/* Mastery score card */}
               <div className="fade-up" style={{ display: "flex", gap: "20px", alignItems: "center", padding: "22px 26px", background: phase.darkColor, border: `1px solid ${phase.color}33`, marginBottom: "28px", flexWrap: "wrap", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", top: "50%", right: "20px", transform: "translateY(-50%)", fontSize: "72px", color: phase.color, opacity: 0.04, fontFamily: "'DM Serif Display', serif", pointerEvents: "none", userSelect: "none" }}>
