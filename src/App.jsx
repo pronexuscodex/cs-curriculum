@@ -10,6 +10,15 @@ import { useState, useEffect, useRef, useCallback } from "react";
 ═══════════════════════════════════════════════════════════════ */
 const AUTH_KEY = "nexuscodex_users";
 const SESSION_KEY = "nexuscodex_session";
+const NAV_KEY = "nexuscodex_last_location";
+
+// ── "Continue where you left off" — persists view/phase/tab across visits ──
+function getLastLocation() {
+  try { return JSON.parse(localStorage.getItem(NAV_KEY) || "null"); } catch { return null; }
+}
+function saveLastLocation(loc) {
+  try { localStorage.setItem(NAV_KEY, JSON.stringify(loc)); } catch { /* storage unavailable */ }
+}
 
 function getUsers() {
   try { return JSON.parse(localStorage.getItem(AUTH_KEY) || "{}"); } catch { return {}; }
@@ -639,7 +648,7 @@ const resourcesByPhase = {
     books: [
       { name: "Crafting Interpreters — Bob Nystrom (free online)", url: "https://www.craftinginterpreters.com/", tag: "Free Book" },
       { name: "Build Your Own Lisp — learn C by writing Lisp", url: "http://www.buildyourownlisp.com/", tag: "Free Book" },
-      { name: "SICP — Structure and Interpretation of Computer Programs", url: "https://mitp-content-server.mit.edu/books/content/sectbyfn/books_pres_0/6515/sicp.zip/index.html", tag: "Free Book" },
+      { name: "SICP — Structure and Interpretation of Computer Programs", url: "https://sarabander.github.io/sicp/html/index.xhtml", tag: "Free Book" },
     ],
     practice: [
       { name: "LLVM Tutorial — Building a JIT Compiler", url: "https://llvm.org/docs/tutorial/", tag: "Tutorial" },
@@ -1197,36 +1206,117 @@ function CheckItem({ text, checked, accent, darkColor, onToggle }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   YOUTUBE EMBED HELPERS
+═══════════════════════════════════════════════════════════════ */
+// Returns a youtube-nocookie.com embed URL for direct videos / playlists,
+// or null if the URL is a channel / non-embeddable page (those still open
+// in a new tab via a normal link).
+function getYouTubeEmbed(url) {
+  try {
+    const u = new URL(url);
+    if (!/youtube\.com|youtu\.be/.test(u.hostname)) return null;
+
+    const videoId = u.hostname.includes("youtu.be")
+      ? u.pathname.slice(1)
+      : u.searchParams.get("v");
+    const listId = u.searchParams.get("list");
+
+    if (videoId && listId) return `https://www.youtube-nocookie.com/embed/${videoId}?list=${listId}`;
+    if (videoId) return `https://www.youtube-nocookie.com/embed/${videoId}`;
+    if (u.pathname.startsWith("/playlist") && listId) return `https://www.youtube-nocookie.com/embed/videoseries?list=${listId}`;
+
+    // /c/Name, /@handle, /channel/... — not embeddable as a player
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   VIDEO MODAL — watch lecture videos without leaving the site
+═══════════════════════════════════════════════════════════════ */
+function VideoModal({ item, embedUrl, accent, onClose }) {
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  return (
+    <div className="cmd-overlay" onClick={onClose} style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)",
+      zIndex: 4000, display: "flex", alignItems: "center", justifyContent: "center",
+      backdropFilter: "blur(12px)", padding: "24px",
+    }}>
+      <div className="cmd-modal" onClick={e => e.stopPropagation()} style={{
+        width: "min(960px, 96vw)", background: "#060606",
+        border: "1px solid #1e1e1e", boxShadow: `0 40px 100px rgba(0,0,0,0.9), 0 0 0 1px ${accent}22`,
+      }}>
+        {/* Header */}
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid #111", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "14px" }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: "8px", color: accent, letterSpacing: "0.22em", marginBottom: "4px" }}>WATCHING IN-APP</div>
+            <div style={{ fontSize: "13px", color: "#ececec", fontFamily: "Inter, system-ui, sans-serif", fontWeight: "500", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+            <a href={item.url} target="_blank" rel="noopener noreferrer" style={{
+              fontSize: "9px", color: "#888", letterSpacing: "0.12em", textDecoration: "none",
+              border: "1px solid #222", padding: "6px 10px", whiteSpace: "nowrap",
+            }}
+              onMouseEnter={e => e.currentTarget.style.color = "#ccc"}
+              onMouseLeave={e => e.currentTarget.style.color = "#888"}
+            >OPEN ON YOUTUBE ↗</a>
+            <button onClick={onClose} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: "20px", lineHeight: 1 }}>×</button>
+          </div>
+        </div>
+        {/* Player */}
+        <div style={{ position: "relative", width: "100%", paddingTop: "56.25%", background: "#000" }}>
+          <iframe
+            src={`${embedUrl}${embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0`}
+            title={item.name}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    RESOURCE CARD
 ═══════════════════════════════════════════════════════════════ */
-function ResourceCard({ item, accent, delay = 0 }) {
+function ResourceCard({ item, accent, delay = 0, onPlayVideo }) {
   const tc = tagColors[item.tag] || "#666";
-  return (
-    <a href={item.url} target="_blank" rel="noopener noreferrer"
-      className="resource-card fade-up"
-      style={{
-        display: "flex", flexDirection: "column", gap: "10px",
-        padding: "15px 17px",
-        background: item.stars === 5 ? "#0a0a0a" : "#070707",
-        border: item.stars === 5 ? `1px solid ${accent}22` : "1px solid #181818",
-        borderRadius: "4px",
-        textDecoration: "none", position: "relative",
-        animationDelay: `${delay}ms`,
-        transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)",
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.border = `1px solid ${accent}66`;
-        e.currentTarget.style.background = "#0f0f0f";
-        e.currentTarget.style.boxShadow = `0 8px 28px ${accent}18`;
-        e.currentTarget.style.transform = "translateY(-2px)";
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.border = item.stars === 5 ? `1px solid ${accent}22` : "1px solid #181818";
-        e.currentTarget.style.background = "#070707";
-        e.currentTarget.style.boxShadow = "none";
-        e.currentTarget.style.transform = "translateY(0)";
-      }}
-    >
+  const embedUrl = getYouTubeEmbed(item.url);
+
+  const cardStyle = {
+    display: "flex", flexDirection: "column", gap: "10px",
+    padding: "15px 17px",
+    background: item.stars === 5 ? "#0a0a0a" : "#070707",
+    border: item.stars === 5 ? `1px solid ${accent}22` : "1px solid #181818",
+    borderRadius: "4px",
+    textDecoration: "none", position: "relative",
+    animationDelay: `${delay}ms`,
+    transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)",
+    cursor: "pointer",
+  };
+  const handleEnter = e => {
+    e.currentTarget.style.border = `1px solid ${accent}66`;
+    e.currentTarget.style.background = "#0f0f0f";
+    e.currentTarget.style.boxShadow = `0 8px 28px ${accent}18`;
+    e.currentTarget.style.transform = "translateY(-2px)";
+  };
+  const handleLeave = e => {
+    e.currentTarget.style.border = item.stars === 5 ? `1px solid ${accent}22` : "1px solid #181818";
+    e.currentTarget.style.background = "#070707";
+    e.currentTarget.style.boxShadow = "none";
+    e.currentTarget.style.transform = "translateY(0)";
+  };
+
+  const content = (
+    <>
       <div style={{ position: "absolute", top: "-1px", right: "10px", display: "flex", gap: "4px" }}>
         {item.stars === 5 && (
           <div style={{ background: accent, color: "#000", fontSize: "7px", fontWeight: "900", letterSpacing: "0.15em", padding: "2px 7px", borderRadius: "0 0 3px 3px", fontFamily: "'DM Mono', monospace" }}>TOP</div>
@@ -1237,6 +1327,7 @@ function ResourceCard({ item, accent, delay = 0 }) {
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
         <span style={{ fontSize: "14px", color: "#ececec", lineHeight: "1.55", flex: 1, fontFamily: "Inter, system-ui, sans-serif", fontWeight: "500" }}>
+          {embedUrl && <span style={{ color: accent, marginRight: "8px", fontSize: "12px" }}>▶</span>}
           {item.name}
         </span>
         <span style={{
@@ -1251,6 +1342,39 @@ function ResourceCard({ item, accent, delay = 0 }) {
           {[1, 2, 3, 4, 5].map(i => <span key={i} style={{ color: i <= item.stars ? accent : "#282828" }}>★</span>)}
         </span>
       )}
+      {embedUrl && (
+        <span style={{ fontSize: "9px", color: "#666", letterSpacing: "0.1em" }}>Watch here — no need to leave the site</span>
+      )}
+    </>
+  );
+
+  // Direct video / playlist: play in-app instead of navigating away.
+  if (embedUrl) {
+    return (
+      <div
+        className="resource-card fade-up"
+        style={cardStyle}
+        onClick={() => onPlayVideo(item, embedUrl)}
+        onMouseEnter={handleEnter}
+        onMouseLeave={handleLeave}
+        role="button"
+        tabIndex={0}
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onPlayVideo(item, embedUrl); }}
+      >
+        {content}
+      </div>
+    );
+  }
+
+  // Everything else (channels, books, sites, tools) opens in a new tab as before.
+  return (
+    <a href={item.url} target="_blank" rel="noopener noreferrer"
+      className="resource-card fade-up"
+      style={cardStyle}
+      onMouseEnter={handleEnter}
+      onMouseLeave={handleLeave}
+    >
+      {content}
     </a>
   );
 }
@@ -1289,7 +1413,37 @@ export default function App() {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [hovPhase, setHovPhase] = useState(null);
   const [sidebarTab, setSidebarTab] = useState("nav"); // "nav" | "timeline"
+  const [playingVideo, setPlayingVideo] = useState(null); // { item, embedUrl } | null
+  const [resumeBanner, setResumeBanner] = useState(null); // last-location info shown on landing
   const contentRef = useRef(null);
+  const navRestored = useRef(false);
+
+  // ── Restore "where you left off" on load ──
+  useEffect(() => {
+    const last = getLastLocation();
+    if (!last) return;
+    if (last.view === "main" && phases[last.activePhase]) {
+      setResumeBanner(last);
+    } else if (last.view === "capstone") {
+      setResumeBanner(last);
+    }
+  }, []);
+
+  const resumeLastLocation = () => {
+    if (!resumeBanner) return;
+    setActivePhase(resumeBanner.activePhase ?? 0);
+    setActiveTab(resumeBanner.activeTab || "overview");
+    setSidebarTab(resumeBanner.sidebarTab || "nav");
+    setView(resumeBanner.view);
+    navRestored.current = true;
+  };
+
+  // ── Persist where the user is, so they can pick up right where they left off ──
+  useEffect(() => {
+    if (view === "landing") return; // don't overwrite a saved spot with the landing page
+    saveLastLocation({ view, activePhase, activeTab, sidebarTab });
+  }, [view, activePhase, activeTab, sidebarTab]);
+
 
   // ── AUTH STATE ──
   const [currentUser, setCurrentUser] = useState(null); // null = guest, string = username
@@ -1344,7 +1498,7 @@ export default function App() {
   useEffect(() => {
     const h = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setCmdOpen(c => !c); }
-      if (e.key === "Escape") { setCmdOpen(false); setAuthOpen(false); setProfileOpen(false); }
+      if (e.key === "Escape") { setCmdOpen(false); setAuthOpen(false); setProfileOpen(false); setPlayingVideo(null); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
@@ -1516,6 +1670,27 @@ export default function App() {
             No Coursera paywalls. Build real systems from nothing.
           </p>
 
+          {/* Continue where you left off */}
+          {resumeBanner && (
+            <button onClick={resumeLastLocation} className="fade-up stagger-2" style={{
+              display: "flex", alignItems: "center", gap: "12px",
+              padding: "10px 20px", marginBottom: "28px",
+              background: "#0a0a0a", border: `1px solid ${(phases[resumeBanner.activePhase]?.color || "#C8F542")}44`,
+              cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = "#0f0f0f"}
+              onMouseLeave={e => e.currentTarget.style.background = "#0a0a0a"}
+            >
+              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#C8F542", flexShrink: 0, animation: "pulse-ring 2s ease-out infinite" }} />
+              <span style={{ fontSize: "10px", color: "#999", letterSpacing: "0.08em" }}>
+                {resumeBanner.view === "capstone"
+                  ? "Continue where you left off — Capstone Projects"
+                  : <>Continue where you left off — <span style={{ color: phases[resumeBanner.activePhase]?.color }}>Phase {phases[resumeBanner.activePhase]?.id} · {phases[resumeBanner.activePhase]?.shortTitle}</span></>}
+              </span>
+              <span style={{ fontSize: "10px", color: "#C8F542" }}>→</span>
+            </button>
+          )}
+
           {/* Live progress sparkline */}
           {totalChecked > 0 && (
             <div className="fade-up stagger-2" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "14px", marginBottom: "28px" }}>
@@ -1678,6 +1853,7 @@ export default function App() {
       {cmdOpen && <CommandPalette phases={phases} onPhase={goPhase} onClose={() => setCmdOpen(false)} checkedItems={checkedItems} />}
       {authOpen && <AuthModal onAuth={handleAuth} onClose={() => setAuthOpen(false)} />}
       {profileOpen && <ProfilePanel username={currentUser} checkedItems={checkedItems} phases={phases} phaseProgress={phaseProgress} onLogout={handleLogout} onClose={() => setProfileOpen(false)} />}
+      {playingVideo && <VideoModal item={playingVideo.item} embedUrl={playingVideo.embedUrl} accent={phase.color} onClose={() => setPlayingVideo(null)} />}
 
       {/* SIDEBAR */}
       <aside style={{
@@ -2044,7 +2220,7 @@ export default function App() {
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: "7px" }}>
-                {filteredRes.map((item, i) => <ResourceCard key={i} item={item} accent={phase.color} delay={i * 35} />)}
+                {filteredRes.map((item, i) => <ResourceCard key={i} item={item} accent={phase.color} delay={i * 35} onPlayVideo={(it, embedUrl) => setPlayingVideo({ item: it, embedUrl })} />)}
               </div>
             </div>
           )}
