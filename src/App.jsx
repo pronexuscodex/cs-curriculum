@@ -11,30 +11,43 @@ import { useState, useEffect, useRef, useCallback } from "react";
 const AUTH_KEY = "nexuscodex_users";
 const SESSION_KEY = "nexuscodex_session";
 const NAV_KEY = "nexuscodex_last_location";
+const ONBOARD_KEY = "nexuscodex_onboarded_v1";
+const PLANNER_KEY = "nexuscodex_planner";
 
 // ── "Continue where you left off" — persists view/phase/tab across visits ──
-function getLastLocation() {
-  try { return JSON.parse(localStorage.getItem(NAV_KEY) || "null"); } catch { return null; }
+function getLastLocation() { return safeGet(NAV_KEY, null); }
+function saveLastLocation(loc) { safeSet(NAV_KEY, loc); }
+
+// ── Safe storage wrapper — never throws, so private-mode / disabled storage
+//    degrades to guest mode instead of crashing the whole app ──
+function storageAvailable() {
+  try {
+    const t = "__nx_test__";
+    localStorage.setItem(t, "1");
+    localStorage.removeItem(t);
+    return true;
+  } catch { return false; }
 }
-function saveLastLocation(loc) {
-  try { localStorage.setItem(NAV_KEY, JSON.stringify(loc)); } catch { /* storage unavailable */ }
+const STORAGE_OK = storageAvailable();
+
+function safeGet(key, fallback) {
+  if (!STORAGE_OK) return fallback;
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
+}
+function safeSet(key, value) {
+  if (!STORAGE_OK) return false;
+  try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
+}
+function safeRemove(key) {
+  if (!STORAGE_OK) return;
+  try { localStorage.removeItem(key); } catch { /* ignore */ }
 }
 
-function getUsers() {
-  try { return JSON.parse(localStorage.getItem(AUTH_KEY) || "{}"); } catch { return {}; }
-}
-function saveUsers(users) {
-  localStorage.setItem(AUTH_KEY, JSON.stringify(users));
-}
-function getSession() {
-  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch { return null; }
-}
-function saveSession(username) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(username));
-}
-function clearSession() {
-  localStorage.removeItem(SESSION_KEY);
-}
+function getUsers() { return safeGet(AUTH_KEY, {}); }
+function saveUsers(users) { return safeSet(AUTH_KEY, users); }
+function getSession() { return safeGet(SESSION_KEY, null); }
+function saveSession(username) { return safeSet(SESSION_KEY, username); }
+function clearSession() { safeRemove(SESSION_KEY); }
 function getUserData(username) {
   const users = getUsers();
   return users[username] || null;
@@ -42,7 +55,46 @@ function getUserData(username) {
 function saveUserData(username, data) {
   const users = getUsers();
   users[username] = { ...users[username], ...data };
-  saveUsers(users);
+  return saveUsers(users);
+}
+
+// ── Export / Import progress as a JSON file (manual backup / device transfer) ──
+function exportProgressFile({ username, displayName, checkedItems, notes, bookmarks, lastWatched }) {
+  const payload = {
+    app: "NexusCodex", version: 1, exportedAt: new Date().toISOString(),
+    username: username || null, displayName: displayName || null,
+    checkedItems: checkedItems || {}, notes: notes || {},
+    bookmarks: bookmarks || {}, lastWatched: lastWatched || {},
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `nexuscodex-progress-${(username || "guest")}-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function parseProgressFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (!data || typeof data !== "object" || !data.checkedItems) {
+          reject(new Error("This doesn't look like a NexusCodex progress file."));
+          return;
+        }
+        resolve(data);
+      } catch {
+        reject(new Error("Couldn't read that file — make sure it's a NexusCodex progress export."));
+      }
+    };
+    reader.onerror = () => reject(new Error("Couldn't read that file."));
+    reader.readAsText(file);
+  });
 }
 function hashSimple(str) {
   // Simple deterministic hash — not for real prod, but fine for local storage
@@ -226,8 +278,72 @@ function AuthModal({ onAuth, onClose }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   USER PROFILE PANEL COMPONENT
+   ONBOARDING MODAL — quick tour for first-time visitors
 ═══════════════════════════════════════════════════════════════ */
+function OnboardingModal({ onClose, onSignIn }) {
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  const items = [
+    { icon: "◉", title: "8 phases, fully free", text: "Each phase pairs MIT/CMU/Berkeley/Stanford courses with projects you build yourself — no paywalls, ever." },
+    { icon: "✓", title: "Track your mastery", text: "Check off tasks in the Mastery tab as you go. Add notes to any item with the 📝 button." },
+    { icon: "▶", title: "Watch videos in-app", text: "Lecture videos open right inside the site — no need to leave for YouTube." },
+    { icon: "★", title: "Save resources", text: "Click the ☆ on any resource card to bookmark it for later, then filter by ★ Saved." },
+    { icon: "⌘K", title: "Jump anywhere fast", text: "Press ⌘K / Ctrl+K any time to search phases and jump straight to one." },
+    { icon: "↻", title: "Pick up where you left off", text: "Your phase, tab, and progress are remembered automatically — even as a guest." },
+  ];
+
+  return (
+    <div className="cmd-overlay" onClick={onClose} style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)",
+      zIndex: 3500, display: "flex", alignItems: "center", justifyContent: "center",
+      backdropFilter: "blur(12px)", padding: "24px",
+    }}>
+      <div className="cmd-modal" onClick={e => e.stopPropagation()} style={{
+        width: "min(560px, 92vw)", background: "#060606",
+        border: "1px solid #1e1e1e", boxShadow: "0 40px 100px rgba(0,0,0,0.9), 0 0 0 1px #C8F54218",
+      }}>
+        <div style={{ padding: "24px 28px 16px", borderBottom: "1px solid #111" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+            <div style={{ width: "26px", height: "26px", background: "linear-gradient(135deg,#C8F542,#42C8F5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "900", color: "#000" }}>N</div>
+            <span style={{ fontSize: "10px", color: "#C8F542", letterSpacing: "0.28em" }}>WELCOME TO NEXUSCODEX</span>
+          </div>
+          <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "24px", color: "#f0f0f0", fontWeight: "400", margin: 0 }}>A quick tour before you dive in</h2>
+        </div>
+
+        <div style={{ padding: "20px 28px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
+          {items.map((it, i) => (
+            <div key={i} style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+              <div style={{ width: "28px", height: "28px", flexShrink: 0, background: "#0d1400", border: "1px solid #C8F54233", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", color: "#C8F542", fontFamily: "'DM Mono', monospace" }}>{it.icon}</div>
+              <div>
+                <div style={{ fontSize: "12px", color: "#ececec", fontWeight: "600", marginBottom: "3px", fontFamily: "Inter, sans-serif" }}>{it.title}</div>
+                <div style={{ fontSize: "11px", color: "#888", lineHeight: "1.6" }}>{it.text}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ padding: "16px 28px 24px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <button onClick={onClose} style={{
+            flex: 1, padding: "12px", background: "#C8F542", color: "#000",
+            border: "none", cursor: "pointer", fontSize: "10px", fontWeight: "900",
+            letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "inherit",
+          }}>Let's go →</button>
+          <button onClick={onSignIn} style={{
+            padding: "12px 18px", background: "transparent", color: "#888",
+            border: "1px solid #2a2a2a", cursor: "pointer", fontSize: "10px",
+            letterSpacing: "0.15em", textTransform: "uppercase", fontFamily: "inherit",
+          }}>Sign In to Save Progress</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function ProfilePanel({ username, checkedItems, phases, phaseProgress, onLogout, onClose }) {
   const user = username ? getUserData(username) : null;
   const displayName = user?.displayName || username || "Guest";
@@ -486,7 +602,23 @@ const GlobalStyles = () => {
       .cta-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(200,245,66,0.25) !important; }
       .cta-secondary:hover { border-color: #555 !important; color: #aaa !important; }
 
-      /* scanline removed */
+      /* ── PHASE CARD LANDING HOVER ── */
+      .phase-btn:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
+
+      /* ── AI COACH BUTTON PULSE ── */
+      @keyframes coachPulse {
+        0%, 100% { box-shadow: 0 4px 20px rgba(200,245,66,0.35); }
+        50% { box-shadow: 0 4px 30px rgba(200,245,66,0.6), 0 0 0 6px rgba(200,245,66,0.08); }
+      }
+
+      /* ── ENHANCED PHASE NAV HOVER ── */
+      .phase-nav-btn { transition: all 0.18s ease !important; }
+
+      /* ── TOPICS AT A GLANCE CARD ── */
+      .glance-card:hover { border-color: var(--phase-color) !important; }
+
+      /* ── BOTTOM STATUS BAR ── */
+      .status-bar-ai { animation: shimmer 3s linear infinite; background: linear-gradient(90deg, #555 0%, #C8F54288 50%, #555 100%); background-size: 200% auto; WebkitBackgroundClip: text; }
 
       /* ── ENHANCED VISIBILITY & INTERACTIONS ── */
       ::selection { background: rgba(200,245,66,0.2); color: #C8F542; }
@@ -519,6 +651,27 @@ const GlobalStyles = () => {
 
       /* Sidebar footer btn */
       .sidebar-footer-btn:hover { border-color: #333 !important; color: #777 !important; }
+
+      /* ── ACCESSIBILITY: visible focus rings for keyboard navigation ── */
+      a:focus-visible, button:focus-visible, input:focus-visible,
+      textarea:focus-visible, [role="button"]:focus-visible, [role="checkbox"]:focus-visible {
+        outline: 2px solid #C8F542 !important;
+        outline-offset: 2px !important;
+      }
+
+      /* ── PRINT: only the active phase's mastery checklist, black on white ── */
+      @media print {
+        body * { visibility: hidden !important; }
+        .print-checklist, .print-checklist * { visibility: visible !important; }
+        .print-checklist {
+          position: absolute !important; left: 0; top: 0; width: 100% !important;
+          background: #fff !important; color: #000 !important;
+        }
+        .print-checklist .check-item { background: #fff !important; border: 1px solid #999 !important; color: #000 !important; }
+        .print-checklist span { color: #000 !important; }
+        .print-checklist textarea { display: none !important; }
+        .print-checklist button { display: none !important; }
+      }
     `;
     document.head.appendChild(style);
     return () => document.head.removeChild(style);
@@ -888,6 +1041,13 @@ const tagColors = {
   "Competitive":"#F55442","Reference":"#888",
 };
 
+// Parses strings like "6–8 weeks" or "10-12 weeks" into an average number of weeks.
+function avgWeeks(weeksStr) {
+  const nums = (weeksStr.match(/\d+/g) || []).map(Number);
+  if (nums.length === 0) return 8;
+  return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    HOOKS
 ═══════════════════════════════════════════════════════════════ */
@@ -1073,6 +1233,85 @@ function Sparkline({ values, color, width = 80, height = 20 }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   STUDY PLANNER — pace yourself against a target finish date
+═══════════════════════════════════════════════════════════════ */
+function PlannerWidget({ totalWeeks, globalPct, accent }) {
+  const [plan, setPlan] = useState(() => safeGet(PLANNER_KEY, null));
+
+  const setTargetDate = (dateStr) => {
+    if (!dateStr) { safeRemove(PLANNER_KEY); setPlan(null); return; }
+    const next = { startDate: plan?.startDate || new Date().toISOString().slice(0, 10), targetDate: dateStr };
+    safeSet(PLANNER_KEY, next);
+    setPlan(next);
+  };
+
+  let expectedPct = null, daysLeft = null, weeksLeft = null;
+  if (plan) {
+    const start = new Date(plan.startDate);
+    const target = new Date(plan.targetDate);
+    const now = new Date();
+    const totalDays = Math.max(1, (target - start) / 86400000);
+    const elapsedDays = Math.max(0, (now - start) / 86400000);
+    expectedPct = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
+    daysLeft = Math.ceil((target - now) / 86400000);
+    weeksLeft = (daysLeft / 7).toFixed(1);
+  }
+
+  const diff = plan ? globalPct - expectedPct : null;
+  const status = diff === null ? null
+    : diff >= 5 ? { label: "Ahead of schedule", color: "#C8F542" }
+    : diff <= -5 ? { label: "Behind schedule", color: "#F55442" }
+    : { label: "On track", color: "#42C8F5" };
+
+  return (
+    <div className="fade-up" style={{ padding: "16px 18px", marginBottom: "24px", background: "#070707", border: "1px solid #141414" }}>
+      <SectionLabel color={accent}>⏱ Study Planner</SectionLabel>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "flex-end" }}>
+        <div>
+          <div style={{ fontSize: "8px", color: "#666", letterSpacing: "0.18em", marginBottom: "6px" }}>TARGET FINISH DATE</div>
+          <input
+            type="date"
+            value={plan?.targetDate || ""}
+            onChange={e => setTargetDate(e.target.value)}
+            aria-label="Target finish date for the full curriculum"
+            style={{
+              padding: "8px 10px", background: "#0a0a0a", border: "1px solid #1c1c1c",
+              color: "#e0e0e0", fontSize: "12px", fontFamily: "'DM Mono', monospace",
+              borderRadius: "2px", outline: "none",
+            }}
+            onFocus={e => e.target.style.borderColor = accent + "66"}
+            onBlur={e => e.target.style.borderColor = "#1c1c1c"}
+          />
+        </div>
+        <div style={{ fontSize: "10px", color: "#666", lineHeight: "1.6" }}>
+          Estimated curriculum length: <span style={{ color: "#aaa" }}>~{totalWeeks} weeks</span> across all 8 phases.
+        </div>
+        {plan && status && (
+          <div style={{ marginLeft: "auto", display: "flex", gap: "20px", alignItems: "center" }}>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: "8px", color: "#666", letterSpacing: "0.15em", marginBottom: "4px" }}>EXPECTED PACE</div>
+              <div style={{ fontSize: "14px", color: "#aaa", fontFamily: "'DM Mono', monospace" }}>{expectedPct}%</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: "8px", color: "#666", letterSpacing: "0.15em", marginBottom: "4px" }}>YOUR PACE</div>
+              <div style={{ fontSize: "14px", color: "#aaa", fontFamily: "'DM Mono', monospace" }}>{globalPct}%</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: "8px", color: "#666", letterSpacing: "0.15em", marginBottom: "4px" }}>STATUS</div>
+              <div style={{ fontSize: "12px", color: status.color, fontWeight: "700" }}>{status.label}</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: "8px", color: "#666", letterSpacing: "0.15em", marginBottom: "4px" }}>TIME LEFT</div>
+              <div style={{ fontSize: "12px", color: daysLeft >= 0 ? "#aaa" : "#F55442" }}>{daysLeft >= 0 ? `${weeksLeft} weeks` : "Past target"}</div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    ANIMATED ROADMAP TIMELINE
 ═══════════════════════════════════════════════════════════════ */
 function RoadmapTimeline({ phases, activePhase, onPhase }) {
@@ -1166,41 +1405,81 @@ function TopicItem({ text, color, delay = 0 }) {
 /* ═══════════════════════════════════════════════════════════════
    CHECK ITEM
 ═══════════════════════════════════════════════════════════════ */
-function CheckItem({ text, checked, accent, darkColor, onToggle }) {
+function CheckItem({ text, checked, accent, darkColor, onToggle, note, onNoteChange }) {
   const [justChecked, setJustChecked] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
   const handleToggle = () => {
     if (!checked) { setJustChecked(true); setTimeout(() => setJustChecked(false), 450); }
     onToggle();
   };
   return (
-    <div onClick={handleToggle} className="check-item" style={{
-      display: "flex", gap: "14px", alignItems: "flex-start",
-      padding: "13px 16px", marginBottom: "6px",
+    <div className="check-item" style={{
+      marginBottom: "6px", borderRadius: "4px",
       background: checked ? darkColor : "#080808",
       border: `1px solid ${checked ? accent + "55" : "#141414"}`,
-      borderRadius: "4px", cursor: "pointer",
       transition: "all 0.18s ease",
       transform: justChecked ? "scale(1.01)" : "scale(1)",
       boxShadow: justChecked ? `0 0 16px ${accent}33` : "none",
     }}>
-      <div style={{
-        width: "18px", height: "18px", flexShrink: 0, marginTop: "2px",
-        border: `1.5px solid ${checked ? accent : "#2a2a2a"}`,
-        background: checked ? accent : "transparent",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: "10px", color: "#000", fontWeight: "900",
-        transition: "all 0.18s cubic-bezier(0.36, 0.07, 0.19, 0.97)",
-        boxShadow: checked ? `0 0 10px ${accent}66` : "none",
-        animation: justChecked ? "celebratePop 0.45s cubic-bezier(0.36,0.07,0.19,0.97)" : "none",
-      }}>
-        {checked ? "✓" : ""}
+      <div
+        onClick={handleToggle}
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleToggle(); } }}
+        role="checkbox"
+        aria-checked={checked}
+        tabIndex={0}
+        style={{
+          display: "flex", gap: "14px", alignItems: "flex-start",
+          padding: "13px 16px", cursor: "pointer",
+        }}>
+        <div aria-hidden="true" style={{
+          width: "18px", height: "18px", flexShrink: 0, marginTop: "2px",
+          border: `1.5px solid ${checked ? accent : "#2a2a2a"}`,
+          background: checked ? accent : "transparent",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "10px", color: "#000", fontWeight: "900",
+          transition: "all 0.18s cubic-bezier(0.36, 0.07, 0.19, 0.97)",
+          boxShadow: checked ? `0 0 10px ${accent}66` : "none",
+          animation: justChecked ? "celebratePop 0.45s cubic-bezier(0.36,0.07,0.19,0.97)" : "none",
+        }}>
+          {checked ? "✓" : ""}
+        </div>
+        <span style={{
+          flex: 1,
+          fontSize: "14px", color: checked ? "#555" : "#e8e8e8",
+          textDecoration: checked ? "line-through" : "none",
+          lineHeight: "1.7", fontFamily: "Inter, system-ui, sans-serif",
+          transition: "color 0.2s",
+        }}>{text}</span>
+        <button
+          onClick={e => { e.stopPropagation(); setNoteOpen(o => !o); }}
+          aria-expanded={noteOpen}
+          aria-label={note ? "Edit your note for this item" : "Add a note for this item"}
+          title={note ? "Edit note" : "Add note"}
+          style={{
+            background: "none", border: "none", cursor: "pointer", flexShrink: 0,
+            color: note ? accent : "#444", fontSize: "12px", padding: "2px 4px", lineHeight: 1,
+          }}
+        >📝</button>
       </div>
-      <span style={{
-        fontSize: "14px", color: checked ? "#555" : "#e8e8e8",
-        textDecoration: checked ? "line-through" : "none",
-        lineHeight: "1.7", fontFamily: "Inter, system-ui, sans-serif",
-        transition: "color 0.2s",
-      }}>{text}</span>
+      {noteOpen && (
+        <div style={{ padding: "0 16px 13px 48px" }} onClick={e => e.stopPropagation()}>
+          <textarea
+            value={note || ""}
+            onChange={e => onNoteChange(e.target.value)}
+            placeholder="Jot down a note, link, or reminder for this item…"
+            aria-label={`Note for: ${text}`}
+            rows={2}
+            style={{
+              width: "100%", padding: "8px 10px", background: "#0a0a0a",
+              border: "1px solid #1c1c1c", outline: "none", color: "#ccc",
+              fontSize: "12px", fontFamily: "'DM Mono', monospace",
+              borderRadius: "2px", boxSizing: "border-box", resize: "vertical",
+            }}
+            onFocus={e => e.target.style.borderColor = accent + "66"}
+            onBlur={e => e.target.style.borderColor = "#1c1c1c"}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -1287,7 +1566,7 @@ function VideoModal({ item, embedUrl, accent, onClose }) {
 /* ═══════════════════════════════════════════════════════════════
    RESOURCE CARD
 ═══════════════════════════════════════════════════════════════ */
-function ResourceCard({ item, accent, delay = 0, onPlayVideo }) {
+function ResourceCard({ item, accent, delay = 0, onPlayVideo, bookmarked, onToggleBookmark }) {
   const tc = tagColors[item.tag] || "#666";
   const embedUrl = getYouTubeEmbed(item.url);
 
@@ -1315,6 +1594,24 @@ function ResourceCard({ item, accent, delay = 0, onPlayVideo }) {
     e.currentTarget.style.transform = "translateY(0)";
   };
 
+  const bookmarkBtn = (
+    <button
+      onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleBookmark(); }}
+      aria-pressed={bookmarked}
+      aria-label={bookmarked ? `Remove ${item.name} from saved resources` : `Save ${item.name} for later`}
+      title={bookmarked ? "Saved — click to remove" : "Save for later"}
+      style={{
+        position: "absolute", top: "8px", left: "8px", zIndex: 1,
+        width: "22px", height: "22px", display: "flex", alignItems: "center", justifyContent: "center",
+        background: bookmarked ? accent + "22" : "transparent",
+        border: `1px solid ${bookmarked ? accent + "66" : "#2a2a2a"}`,
+        borderRadius: "3px", cursor: "pointer",
+        color: bookmarked ? accent : "#555", fontSize: "11px", lineHeight: 1,
+        transition: "all 0.15s",
+      }}
+    >{bookmarked ? "★" : "☆"}</button>
+  );
+
   const content = (
     <>
       <div style={{ position: "absolute", top: "-1px", right: "10px", display: "flex", gap: "4px" }}>
@@ -1325,7 +1622,7 @@ function ResourceCard({ item, accent, delay = 0, onPlayVideo }) {
           <div style={{ background: "#C8F542", color: "#000", fontSize: "7px", fontWeight: "900", letterSpacing: "0.18em", padding: "2px 7px", borderRadius: "0 0 3px 3px", fontFamily: "'DM Mono', monospace" }}>FREE</div>
         )}
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", paddingLeft: "26px" }}>
         <span style={{ fontSize: "14px", color: "#ececec", lineHeight: "1.55", flex: 1, fontFamily: "Inter, system-ui, sans-serif", fontWeight: "500" }}>
           {embedUrl && <span style={{ color: accent, marginRight: "8px", fontSize: "12px" }}>▶</span>}
           {item.name}
@@ -1338,12 +1635,12 @@ function ResourceCard({ item, accent, delay = 0, onPlayVideo }) {
         }}>{item.tag}</span>
       </div>
       {item.stars && (
-        <span style={{ letterSpacing: "2px", fontSize: "11px" }}>
+        <span style={{ letterSpacing: "2px", fontSize: "11px", paddingLeft: "26px" }}>
           {[1, 2, 3, 4, 5].map(i => <span key={i} style={{ color: i <= item.stars ? accent : "#282828" }}>★</span>)}
         </span>
       )}
       {embedUrl && (
-        <span style={{ fontSize: "9px", color: "#666", letterSpacing: "0.1em" }}>Watch here — no need to leave the site</span>
+        <span style={{ fontSize: "9px", color: "#666", letterSpacing: "0.1em", paddingLeft: "26px" }}>Watch here — no need to leave the site</span>
       )}
     </>
   );
@@ -1359,8 +1656,10 @@ function ResourceCard({ item, accent, delay = 0, onPlayVideo }) {
         onMouseLeave={handleLeave}
         role="button"
         tabIndex={0}
-        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onPlayVideo(item, embedUrl); }}
+        aria-label={`Play ${item.name} in-app`}
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPlayVideo(item, embedUrl); } }}
       >
+        {bookmarkBtn}
         {content}
       </div>
     );
@@ -1374,10 +1673,17 @@ function ResourceCard({ item, accent, delay = 0, onPlayVideo }) {
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
     >
+      {bookmarkBtn}
       {content}
     </a>
   );
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   PROGRESS RING — used in sidebar and mastery header
+═══════════════════════════════════════════════════════════════ */
+
+
 
 /* ═══════════════════════════════════════════════════════════════
    TICKER TAPE
@@ -1408,6 +1714,10 @@ export default function App() {
   const [activePhase, setActivePhase] = useState(0);
   const [activeTab, setActiveTab] = useState("overview");
   const [checkedItems, setCheckedItems] = useState({});
+  const [notes, setNotes] = useState({});           // { [checklistKey]: "free text" }
+  const [bookmarks, setBookmarks] = useState({});   // { [resourceUrl]: true }
+  const [lastWatched, setLastWatched] = useState({}); // { [phaseId]: { name, url, embedUrl, cat } }
+  const [resSearch, setResSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [resFilter, setResFilter] = useState("all");
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -1415,8 +1725,16 @@ export default function App() {
   const [sidebarTab, setSidebarTab] = useState("nav"); // "nav" | "timeline"
   const [playingVideo, setPlayingVideo] = useState(null); // { item, embedUrl } | null
   const [resumeBanner, setResumeBanner] = useState(null); // last-location info shown on landing
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [importMsg, setImportMsg] = useState(null); // { type: "ok"|"error", text }
   const contentRef = useRef(null);
   const navRestored = useRef(false);
+
+  // ── First-visit onboarding tour ──
+  useEffect(() => {
+    if (!safeGet(ONBOARD_KEY, false)) setShowOnboarding(true);
+  }, []);
+  const dismissOnboarding = () => { safeSet(ONBOARD_KEY, true); setShowOnboarding(false); };
 
   // ── Restore "where you left off" on load ──
   useEffect(() => {
@@ -1462,20 +1780,23 @@ export default function App() {
         if (userData.checkedItems && Object.keys(userData.checkedItems).length > 0) {
           setCheckedItems(userData.checkedItems);
         }
+        if (userData.notes) setNotes(userData.notes);
+        if (userData.bookmarks) setBookmarks(userData.bookmarks);
+        if (userData.lastWatched) setLastWatched(userData.lastWatched);
       }
     }
     setAuthChecked(true);
   }, []);
 
-  // Auto-save progress whenever checkedItems changes (if logged in)
+  // Auto-save progress whenever it changes (if logged in)
   useEffect(() => {
     if (currentUser && authChecked) {
       saveUserData(currentUser, {
-        checkedItems,
+        checkedItems, notes, bookmarks, lastWatched,
         lastActive: Date.now(),
       });
     }
-  }, [checkedItems, currentUser, authChecked]);
+  }, [checkedItems, notes, bookmarks, lastWatched, currentUser, authChecked]);
 
   const handleAuth = (username) => {
     setAuthOpen(false);
@@ -1485,6 +1806,9 @@ export default function App() {
       if (userData?.checkedItems && Object.keys(userData.checkedItems).length > 0) {
         setCheckedItems(userData.checkedItems);
       }
+      if (userData?.notes) setNotes(userData.notes);
+      if (userData?.bookmarks) setBookmarks(userData.bookmarks);
+      if (userData?.lastWatched) setLastWatched(userData.lastWatched);
     }
   };
 
@@ -1492,6 +1816,32 @@ export default function App() {
     clearSession();
     setCurrentUser(null);
     setCheckedItems({});
+    setNotes({});
+    setBookmarks({});
+    setLastWatched({});
+  };
+
+  // ── Export current progress to a JSON file ──
+  const handleExportProgress = () => {
+    exportProgressFile({
+      username: currentUser,
+      displayName: currentUser ? (getUserData(currentUser)?.displayName || currentUser) : null,
+      checkedItems, notes, bookmarks, lastWatched,
+    });
+  };
+
+  // ── Import progress from a JSON file (applies to current session; saved if logged in) ──
+  const handleImportProgress = async (file) => {
+    try {
+      const data = await parseProgressFile(file);
+      setCheckedItems(data.checkedItems || {});
+      setNotes(data.notes || {});
+      setBookmarks(data.bookmarks || {});
+      setLastWatched(data.lastWatched || {});
+      setImportMsg({ type: "ok", text: currentUser ? "Progress imported and saved to your account." : "Progress imported for this session — sign in to keep it saved." });
+    } catch (err) {
+      setImportMsg({ type: "error", text: err.message || "Import failed." });
+    }
   };
 
   // Keyboard shortcuts
@@ -1511,6 +1861,7 @@ export default function App() {
     a + p.checklist.theory.length + p.checklist.programming.length + p.checklist.engineering.length, 0);
   const totalChecked = Object.values(checkedItems).filter(Boolean).length;
   const globalPct = Math.round((totalChecked / totalPossible) * 100);
+  const totalWeeksEstimate = Math.round(phases.reduce((a, p) => a + avgWeeks(p.weeks), 0));
 
   const phaseProgress = useCallback((idx) => {
     const p = phases[idx]; let n = 0;
@@ -1538,13 +1889,34 @@ export default function App() {
     ...resources.practice.map(r => ({ ...r, cat: "Practice" })),
     ...resources.videos.map(r => ({ ...r, cat: "Videos" })),
   ] : [];
-  const filteredRes = resFilter === "all" ? allRes : allRes.filter(r => r.cat === resFilter);
+  const catFiltered = resFilter === "all" ? allRes
+    : resFilter === "saved" ? allRes.filter(r => bookmarks[r.url])
+    : allRes.filter(r => r.cat === resFilter);
+  const filteredRes = resSearch.trim()
+    ? catFiltered.filter(r => r.name.toLowerCase().includes(resSearch.trim().toLowerCase()) || r.tag.toLowerCase().includes(resSearch.trim().toLowerCase()))
+    : catFiltered;
+
+  const toggleBookmark = (url) => setBookmarks(prev => {
+    const next = { ...prev };
+    if (next[url]) delete next[url]; else next[url] = true;
+    return next;
+  });
+  const setNote = (key, text) => setNotes(prev => {
+    const next = { ...prev };
+    if (text.trim()) next[key] = text; else delete next[key];
+    return next;
+  });
+  const handlePlayVideo = (item, embedUrl) => {
+    setPlayingVideo({ item, embedUrl });
+    setLastWatched(prev => ({ ...prev, [phase.id]: { name: item.name, url: item.url, embedUrl, cat: item.cat || "Videos" } }));
+  };
+  const continueWatching = lastWatched[phase.id];
 
   const tabs = [
     { id: "overview",   label: "Overview",   icon: "◉", group: "learn",   hint: "What you'll learn" },
     { id: "resources",  label: "Resources",  icon: "⬡", group: "learn",   hint: "Free courses & books" },
     { id: "math",       label: "Math",       icon: "∑", group: "learn",   hint: "Theory & hardware" },
-    { id: "systems",    label: "Systems",    icon: "▣", group: "learn",   hint: "C programming" },
+    { id: "systems",    label: "C / Systems",icon: "▣", group: "learn",   hint: "C programming" },
     { id: "projects",   label: "Build",      icon: "◈", group: "do",      hint: "Projects to build" },
     { id: "mastery",    label: "Mastery",    icon: "✓", group: "do",      hint: "Track your progress" },
     { id: "challenges", label: "Challenges", icon: "★", group: "do",      hint: "Graduate problems" },
@@ -1632,8 +2004,9 @@ export default function App() {
         </nav>
 
         {authOpen && <AuthModal onAuth={handleAuth} onClose={() => setAuthOpen(false)} />}
-        {profileOpen && <ProfilePanel username={currentUser} checkedItems={checkedItems} phases={phases} phaseProgress={phaseProgress} onLogout={handleLogout} onClose={() => setProfileOpen(false)} />}
+        {profileOpen && <ProfilePanel username={currentUser} checkedItems={checkedItems} phases={phases} phaseProgress={phaseProgress} onLogout={handleLogout} onClose={() => setProfileOpen(false)} onExport={handleExportProgress} onImport={handleImportProgress} importMsg={importMsg} />}
         {cmdOpen && <CommandPalette phases={phases} onPhase={goPhase} onClose={() => { setCmdOpen(false); if (view === "landing") setView("landing"); }} checkedItems={checkedItems} />}
+        {showOnboarding && <OnboardingModal onClose={dismissOnboarding} onSignIn={() => { dismissOnboarding(); setAuthOpen(true); }} />}
 
         <TickerTape />
 
@@ -1699,46 +2072,56 @@ export default function App() {
             </div>
           )}
 
-          {/* Phase matrix — fully centered */}
-          <div className="fade-up stagger-3" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "40px", width: "100%" }}>
+          {/* Phase grid — expanded cards */}
+          <div className="fade-up stagger-3" style={{ width: "100%", maxWidth: "min(900px, 96vw)", margin: "0 auto 40px" }}>
             <div style={{
               display: "grid",
-              gridTemplateColumns: isMobile ? "repeat(4,1fr)" : "repeat(8,1fr)",
+              gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)",
               gap: "6px",
-              width: isMobile ? "min(320px, 100%)" : "min(640px, 100%)",
-              margin: "0 auto",
             }}>
               {phases.map((p, i) => {
                 const pp = phaseProgress(i);
                 const ppct = pp.total > 0 ? Math.round((pp.done / pp.total) * 100) : 0;
+                const dm2 = difficultyMeta[p.difficulty] || difficultyMeta["Foundations"];
+                const isHov = hovPhase === i;
                 return (
                   <button key={p.id} className="phase-btn"
                     onMouseEnter={() => setHovPhase(i)} onMouseLeave={() => setHovPhase(null)}
                     onClick={() => goPhase(i)}
                     style={{
-                      aspectRatio: "1", background: hovPhase === i ? p.darkColor : "#080808",
-                      border: `1px solid ${hovPhase === i ? p.color + "66" : "#181818"}`,
-                      cursor: "pointer", display: "flex", flexDirection: "column",
-                      alignItems: "center", justifyContent: "center", gap: "3px",
-                      transition: "all 0.2s cubic-bezier(0.4,0,0.2,1)", fontFamily: "inherit",
-                      transform: hovPhase === i ? "scale(1.08)" : "scale(1)",
-                      position: "relative", overflow: "hidden",
+                      background: isHov ? p.darkColor : "#080808",
+                      border: `1px solid ${isHov ? p.color + "55" : "#181818"}`,
+                      cursor: "pointer", padding: "16px 14px",
+                      display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "8px",
+                      transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)", fontFamily: "inherit",
+                      transform: isHov ? "translateY(-3px)" : "translateY(0)",
+                      boxShadow: isHov ? `0 8px 32px ${p.color}18` : "none",
+                      position: "relative", overflow: "hidden", textAlign: "left",
                     }}>
+                    {/* Progress bar at bottom */}
                     {ppct > 0 && (
                       <div style={{ position: "absolute", bottom: 0, left: 0, height: "2px", width: `${ppct}%`, background: p.color, transition: "width 0.4s" }} />
                     )}
-                    <span style={{ fontSize: isMobile ? "15px" : "20px", color: hovPhase === i ? p.color : "#666", transition: "color 0.2s", fontFamily: "'DM Serif Display', serif" }}>{p.icon}</span>
-                    <span style={{ fontSize: "8px", color: hovPhase === i ? p.color : "#555", letterSpacing: "0.1em" }}>P{p.id}</span>
+                    {/* Top: icon + phase number */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                      <span style={{ fontSize: "22px", color: isHov ? p.color : "#555", transition: "color 0.2s", fontFamily: "'DM Serif Display', serif" }}>{p.icon}</span>
+                      <span style={{ fontSize: "8px", color: isHov ? p.color : "#444", letterSpacing: "0.12em", fontFamily: "'DM Mono', monospace" }}>P{String(p.id).padStart(2,"0")}</span>
+                    </div>
+                    {/* Title */}
+                    <div style={{ fontSize: isMobile ? "11px" : "12px", color: isHov ? "#f0f0f0" : "#999", fontWeight: "600", lineHeight: "1.3", fontFamily: "Inter, sans-serif" }}>{p.shortTitle}</div>
+                    {/* Meta row */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "7px", padding: "2px 5px", background: dm2.bg, color: dm2.color, border: `1px solid ${dm2.color}33`, letterSpacing: "0.08em", fontFamily: "'DM Mono', monospace" }}>{p.difficulty.toUpperCase()}</span>
+                      {ppct > 0 && <span style={{ fontSize: "8px", color: p.color, fontFamily: "'DM Mono', monospace" }}>{ppct}%</span>}
+                    </div>
                   </button>
                 );
               })}
             </div>
-
-            {/* Hover label — stays centered under the grid */}
-            <div style={{ height: "22px", marginTop: "12px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ marginTop: "10px", textAlign: "center", height: "18px" }}>
               {hovPhase !== null && (
-                <div className="fade-up" style={{ fontSize: "12px", color: phases[hovPhase].color, letterSpacing: "0.05em", textAlign: "center" }}>
-                  {phases[hovPhase].icon} Phase {phases[hovPhase].id} — {phases[hovPhase].title} · {phases[hovPhase].weeks}
+                <div className="fade-up" style={{ fontSize: "11px", color: phases[hovPhase].color, letterSpacing: "0.06em" }}>
+                  {phases[hovPhase].title} · {phases[hovPhase].weeks}
                 </div>
               )}
             </div>
@@ -1758,6 +2141,23 @@ export default function App() {
               </div>
             ))}
           </div>
+
+          {/* How it Works — 3 columns */}
+          {!isMobile && (
+            <div className="fade-up stagger-4" style={{ width: "100%", maxWidth: "min(860px, 96vw)", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "2px", marginBottom: "44px" }}>
+              {[
+                { icon: "⬡", title: "Free, elite sources", body: "MIT OCW, CMU, Stanford, Berkeley — the actual lectures, not summaries. No Coursera paywalls." },
+                { icon: "◈", title: "Build, don't watch", body: "Every phase ends with a real project: a shell, a kernel, a compiler, a distributed database." },
+                { icon: "✓", title: "Mastery tracking", body: "Check off theory, programming, and engineering skills as you go. Pick up exactly where you left off." },
+              ].map((item, i) => (
+                <div key={i} style={{ padding: "22px 24px", background: "#060606", borderTop: "1px solid #141414", borderBottom: "1px solid #0a0a0a" }}>
+                  <div style={{ fontSize: "18px", color: "#C8F54266", fontFamily: "'DM Serif Display', serif", marginBottom: "10px" }}>{item.icon}</div>
+                  <div style={{ fontSize: "13px", color: "#e0e0e0", fontWeight: "600", marginBottom: "8px", fontFamily: "Inter, sans-serif" }}>{item.title}</div>
+                  <div style={{ fontSize: "12px", color: "#777", lineHeight: "1.7", fontFamily: "Inter, sans-serif" }}>{item.body}</div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* CTAs */}
           <div className="fade-up stagger-5" style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
@@ -1811,6 +2211,8 @@ export default function App() {
         <Overlays />
         <CursorGlow />
         <TickerTape />
+        {showOnboarding && <OnboardingModal onClose={dismissOnboarding} onSignIn={() => { dismissOnboarding(); setAuthOpen(true); }} />}
+        {authOpen && <AuthModal onAuth={handleAuth} onClose={() => setAuthOpen(false)} />}
         <div style={{ padding: isMobile ? "20px" : "24px 60px", borderBottom: "1px solid #0e0e0e", display: "flex", alignItems: "center", gap: "20px", background: "#040404", position: "sticky", top: 0, zIndex: 10 }}>
           <button onClick={() => setView("landing")} style={{ background: "none", border: "1px solid #1a1a1a", color: "#444", padding: "7px 14px", cursor: "pointer", fontSize: "9px", letterSpacing: "0.15em" }}>← BACK</button>
           <span style={{ fontSize: "9px", color: "#666", letterSpacing: "0.3em" }}>CAPSTONE PROJECTS</span>
@@ -1852,8 +2254,9 @@ export default function App() {
 
       {cmdOpen && <CommandPalette phases={phases} onPhase={goPhase} onClose={() => setCmdOpen(false)} checkedItems={checkedItems} />}
       {authOpen && <AuthModal onAuth={handleAuth} onClose={() => setAuthOpen(false)} />}
-      {profileOpen && <ProfilePanel username={currentUser} checkedItems={checkedItems} phases={phases} phaseProgress={phaseProgress} onLogout={handleLogout} onClose={() => setProfileOpen(false)} />}
+      {profileOpen && <ProfilePanel username={currentUser} checkedItems={checkedItems} phases={phases} phaseProgress={phaseProgress} onLogout={handleLogout} onClose={() => setProfileOpen(false)} onExport={handleExportProgress} onImport={handleImportProgress} importMsg={importMsg} />}
       {playingVideo && <VideoModal item={playingVideo.item} embedUrl={playingVideo.embedUrl} accent={phase.color} onClose={() => setPlayingVideo(null)} />}
+      {showOnboarding && <OnboardingModal onClose={dismissOnboarding} onSignIn={() => { dismissOnboarding(); setAuthOpen(true); }} />}
 
       {/* SIDEBAR */}
       <aside style={{
@@ -1906,7 +2309,7 @@ export default function App() {
         </div>
 
         {/* NAV or TIMELINE */}
-        <div style={{ flex: 1, overflowY: "auto", padding: sidebarTab === "timeline" ? "16px 12px" : "6px 0" }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: sidebarTab === "timeline" ? "16px 12px" : "6px 0" }}>
           {sidebarTab === "nav" ? phases.map((p, i) => {
             const pp = phaseProgress(i);
             const ppct = pp.total > 0 ? Math.round((pp.done / pp.total) * 100) : 0;
@@ -2132,13 +2535,43 @@ export default function App() {
                     <button key={p.id} onClick={() => goPhase(i)} style={{
                       flex: 1, height: "5px", background: "#111", border: "none", cursor: "pointer",
                       position: "relative", padding: 0,
-                    }}>
+                    }} title={`Phase ${p.id}: ${p.shortTitle} (${ppct}%)`}>
                       <div style={{ height: "100%", width: `${ppct}%`, background: p.color, transition: "width 0.5s" }} />
                       {i === activePhase && <div style={{ position: "absolute", inset: "-1px", border: `1px solid ${p.color}88` }} />}
                     </button>
                   );
                 })}
               </div>
+
+              {/* Topics at a Glance — 3-column summary */}
+              {!isMobile && (
+                <div className="fade-up stagger-1" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", marginBottom: "32px" }}>
+                  {[
+                    { label: "Math Theory", icon: "∑", items: phase.math.slice(0, 3), tab: "math" },
+                    { label: "C Programming", icon: "⌨", items: phase.cpp.slice(0, 3), tab: "systems" },
+                    { label: "Hardware", icon: "▣", items: phase.hardware.slice(0, 3), tab: "systems" },
+                  ].map(({ label, icon, items, tab }) => (
+                    <button key={label} onClick={() => setActiveTab(tab)} style={{
+                      padding: "14px 16px", background: "#070707", border: `1px solid #111`,
+                      cursor: "pointer", textAlign: "left", fontFamily: "inherit", transition: "all 0.15s",
+                    }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = phase.color + "44"; e.currentTarget.style.background = "#0a0a0a"; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = "#111"; e.currentTarget.style.background = "#070707"; }}
+                    >
+                      <div style={{ fontSize: "9px", color: phase.color, letterSpacing: "0.2em", marginBottom: "10px", fontFamily: "'DM Mono', monospace", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span>{icon}</span> {label.toUpperCase()}
+                      </div>
+                      {items.map((item, j) => (
+                        <div key={j} style={{ fontSize: "11px", color: "#888", padding: "3px 0", borderBottom: j < items.length - 1 ? "1px solid #0c0c0c" : "none", lineHeight: "1.5", fontFamily: "Inter, sans-serif", display: "flex", gap: "6px" }}>
+                          <span style={{ color: phase.color + "55", flexShrink: 0 }}>·</span>
+                          <span>{item.length > 52 ? item.slice(0, 52) + "…" : item}</span>
+                        </div>
+                      ))}
+                      <div style={{ marginTop: "10px", fontSize: "8px", color: phase.color + "66", letterSpacing: "0.12em" }}>VIEW ALL →</div>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "32px" }}>
                 <div>
@@ -2206,21 +2639,60 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Continue watching */}
+              {continueWatching && (
+                <div className="fade-up stagger-1" style={{ display: "flex", alignItems: "center", gap: "14px", padding: "12px 18px", marginBottom: "18px", background: phase.darkColor, border: `1px solid ${phase.color}33`, borderLeft: `3px solid ${phase.color}` }}>
+                  <span style={{ fontSize: "14px", color: phase.color, flexShrink: 0 }}>▶</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "9px", color: phase.color, fontWeight: "700", letterSpacing: "0.15em", marginBottom: "3px" }}>CONTINUE WATCHING</div>
+                    <div style={{ fontSize: "13px", color: "#ccc", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{continueWatching.name}</div>
+                  </div>
+                  <button onClick={() => setPlayingVideo({ item: continueWatching, embedUrl: continueWatching.embedUrl })} style={{
+                    padding: "7px 16px", background: phase.color, color: "#000",
+                    border: "none", cursor: "pointer", fontSize: "8px", fontWeight: "900",
+                    letterSpacing: "0.18em", fontFamily: "inherit", flexShrink: 0,
+                  }}>RESUME →</button>
+                </div>
+              )}
+
+              {/* Search */}
+              <div className="fade-up stagger-1" style={{ marginBottom: "14px" }}>
+                <input
+                  value={resSearch} onChange={e => setResSearch(e.target.value)}
+                  placeholder="Search this phase's resources by name or source…"
+                  aria-label="Search resources"
+                  style={{
+                    width: "100%", padding: "10px 14px", background: "#0a0a0a",
+                    border: "1px solid #1c1c1c", outline: "none", color: "#e0e0e0",
+                    fontSize: "12px", fontFamily: "'DM Mono', monospace",
+                    borderRadius: "2px", boxSizing: "border-box", transition: "border-color 0.15s",
+                  }}
+                  onFocus={e => e.target.style.borderColor = phase.color + "66"}
+                  onBlur={e => e.target.style.borderColor = "#1c1c1c"}
+                />
+              </div>
+
               <div className="fade-up stagger-1" style={{ display: "flex", gap: "6px", marginBottom: "22px", flexWrap: "wrap" }}>
-                {["all", "Courses", "Books & Texts", "Practice", "Videos"].map(f => (
+                {["all", "Courses", "Books & Texts", "Practice", "Videos", "saved"].map(f => (
                   <button key={f} onClick={() => setResFilter(f)} style={{
                     padding: "6px 13px", background: resFilter === f ? phase.darkColor : "#080808",
                     border: `1px solid ${resFilter === f ? phase.color + "66" : "#181818"}`,
                     color: resFilter === f ? phase.color : "#999",
                     cursor: "pointer", fontSize: "8px", letterSpacing: "0.15em",
                     textTransform: "uppercase", fontFamily: "inherit", transition: "all 0.15s",
-                  }}>{f === "all" ? "All" : f}</button>
+                  }}>{f === "all" ? "All" : f === "saved" ? "★ Saved" : f}</button>
                 ))}
                 <span style={{ marginLeft: "auto", fontSize: "9px", color: "#666", alignSelf: "center" }}>{filteredRes.length} resources</span>
               </div>
 
+              {filteredRes.length === 0 && (
+                <div style={{ padding: "32px", textAlign: "center", color: "#555", fontSize: "12px", fontFamily: "'DM Mono', monospace" }}>
+                  {resFilter === "saved" ? "No saved resources for this phase yet — click the ☆ on any card to save it." : `No resources match "${resSearch}".`}
+                </div>
+              )}
+
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: "7px" }}>
-                {filteredRes.map((item, i) => <ResourceCard key={i} item={item} accent={phase.color} delay={i * 35} onPlayVideo={(it, embedUrl) => setPlayingVideo({ item: it, embedUrl })} />)}
+                {filteredRes.map((item, i) => <ResourceCard key={i} item={item} accent={phase.color} delay={i * 35} onPlayVideo={handlePlayVideo} bookmarked={!!bookmarks[item.url]} onToggleBookmark={() => toggleBookmark(item.url)} />)}
               </div>
             </div>
           )}
@@ -2228,17 +2700,36 @@ export default function App() {
           {/* ── MATH ── */}
           {activeTab === "math" && (
             <div>
-              <SectionLabel color={phase.color}>Mathematical Foundations</SectionLabel>
-              {phase.math.map((item, i) => <TopicItem key={i} text={item} color={phase.color} delay={i * 50} />)}
+              {/* Phase context banner */}
+              <div className="fade-up" style={{ padding: "14px 18px", marginBottom: "24px", background: phase.darkColor, border: `1px solid ${phase.color}22`, display: "flex", alignItems: "center", gap: "14px" }}>
+                <span style={{ fontSize: "22px", color: phase.color, fontFamily: "'DM Serif Display', serif" }}>{phase.icon}</span>
+                <div>
+                  <div style={{ fontSize: "11px", color: phase.color, fontWeight: "700", letterSpacing: "0.14em", marginBottom: "2px" }}>PHASE {phase.id} — {phase.shortTitle.toUpperCase()}</div>
+                  <div style={{ fontSize: "12px", color: "#999", fontFamily: "Inter, sans-serif" }}>The math you need to deeply understand the systems in this phase.</div>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "32px" }}>
+                <div>
+                  <SectionLabel color={phase.color}>Mathematical Foundations</SectionLabel>
+                  {phase.math.map((item, i) => <TopicItem key={i} text={item} color={phase.color} delay={i * 50} />)}
+                </div>
+                <div>
+                  <SectionLabel color={phase.color}>Hardware Architecture</SectionLabel>
+                  {phase.hardware.map((item, i) => <TopicItem key={i} text={item} color={phase.color} delay={i * 50} />)}
+                </div>
+              </div>
             </div>
           )}
 
           {/* ── SYSTEMS ── */}
           {activeTab === "systems" && (
             <div>
-              <SectionLabel color={phase.color}>Hardware Architecture</SectionLabel>
-              {phase.hardware.map((item, i) => <TopicItem key={i} text={item} color={phase.color} delay={i * 50} />)}
-              <div style={{ margin: "24px 0" }} />
+              {/* Context banner */}
+              <div className="fade-up" style={{ padding: "14px 18px", marginBottom: "24px", background: "#080808", border: `1px solid #141414`, borderLeft: `3px solid ${phase.color}66` }}>
+                <div style={{ fontSize: "11px", color: "#999", fontFamily: "Inter, sans-serif", lineHeight: "1.6" }}>
+                  <span style={{ color: phase.color, fontWeight: "700" }}>C/C++ skills</span> required for this phase. All concepts are prerequisites for the hands-on projects.
+                </div>
+              </div>
               <SectionLabel color={phase.color}>C Programming</SectionLabel>
               {phase.cpp.map((item, i) => <TopicItem key={i} text={item} color={phase.color} delay={i * 50} />)}
             </div>
@@ -2311,13 +2802,26 @@ export default function App() {
                     <span style={{ color: phase.color }}>{prog.total - prog.done > 0 ? `${prog.total - prog.done} remaining` : "All done"}</span>
                   </div>
                 </div>
-                <div style={{ marginLeft: "auto", textAlign: "right" }}>
-                  <div style={{ fontSize: "9px", color: "#777", letterSpacing: "0.12em", marginBottom: "5px" }}>GLOBAL MASTERY</div>
-                  <div style={{ fontSize: "26px", color: "#C8F542", fontFamily: "'DM Serif Display', serif", lineHeight: 1 }}>{globalPct}%</div>
-                  <div style={{ fontSize: "9px", color: "#777", marginTop: "3px" }}>{totalChecked}/{totalPossible} tasks</div>
+                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "20px" }}>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "9px", color: "#777", letterSpacing: "0.12em", marginBottom: "5px" }}>GLOBAL MASTERY</div>
+                    <div style={{ fontSize: "26px", color: "#C8F542", fontFamily: "'DM Serif Display', serif", lineHeight: 1 }}>{globalPct}%</div>
+                    <div style={{ fontSize: "9px", color: "#777", marginTop: "3px" }}>{totalChecked}/{totalPossible} tasks</div>
+                  </div>
+                  <button onClick={() => window.print()} style={{
+                    padding: "8px 14px", background: "transparent", color: "#888",
+                    border: "1px solid #2a2a2a", cursor: "pointer", fontSize: "9px",
+                    letterSpacing: "0.12em", fontFamily: "inherit", transition: "all 0.15s", whiteSpace: "nowrap",
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.borderColor = "#555"; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = "#888"; e.currentTarget.style.borderColor = "#2a2a2a"; }}
+                  >🖨 PRINT CHECKLIST</button>
                 </div>
               </div>
 
+              <PlannerWidget totalWeeks={totalWeeksEstimate} globalPct={globalPct} accent={phase.color} />
+
+              <div className="print-checklist">
               {[
                 { key: "theory", label: "Theory & Proof", icon: "∑" },
                 { key: "programming", label: "Programming", icon: "⌨" },
@@ -2327,10 +2831,11 @@ export default function App() {
                   <SectionLabel color={phase.color}>{icon} {label}</SectionLabel>
                   {phase.checklist[key].map((item, i) => {
                     const k = `${phase.id}-${key}-${item}`;
-                    return <CheckItem key={i} text={item} checked={!!checkedItems[k]} accent={phase.color} darkColor={phase.darkColor} onToggle={() => toggle(k)} />;
+                    return <CheckItem key={i} text={item} checked={!!checkedItems[k]} accent={phase.color} darkColor={phase.darkColor} onToggle={() => toggle(k)} note={notes[k]} onNoteChange={text => setNote(k, text)} />;
                   })}
                 </div>
               ))}
+              </div>
             </div>
           )}
 
@@ -2375,6 +2880,8 @@ export default function App() {
             <span style={{ fontSize: "9px", color: "#777", letterSpacing: "0.15em" }}>P{phase.id}/{phases.length}</span>
             <span style={{ fontSize: "9px", color: "#444" }}>·</span>
             <span style={{ fontSize: "9px", color: "#888", letterSpacing: "0.1em" }}>{phase.shortTitle.toUpperCase()}</span>
+            <span style={{ fontSize: "9px", color: "#444" }}>·</span>
+            <span style={{ fontSize: "9px", color: phasePct === 100 ? "#C8F542" : "#555", letterSpacing: "0.08em" }}>{phasePct}%</span>
           </div>
           <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
             <span style={{ fontSize: "9px", color: "#777", letterSpacing: "0.12em" }}>⌘K SEARCH</span>
