@@ -13,6 +13,8 @@ const SESSION_KEY = "nexuscodex_session";
 const NAV_KEY = "nexuscodex_last_location";
 const ONBOARD_KEY = "nexuscodex_onboarded_v1";
 const PLANNER_KEY = "nexuscodex_planner";
+const STREAK_KEY = "nexuscodex_streak";
+const CHALLENGES_KEY = "nexuscodex_challenges";
 
 // ── "Continue where you left off" — persists view/phase/tab across visits ──
 function getLastLocation() { return safeGet(NAV_KEY, null); }
@@ -43,6 +45,18 @@ function safeRemove(key) {
   try { localStorage.removeItem(key); } catch { /* ignore */ }
 }
 
+// ── Study streak ──────────────────────────────────────────────
+function getStreak() { return safeGet(STREAK_KEY, { count: 0, lastDate: null }); }
+function touchStreak() {
+  const today = new Date().toISOString().slice(0, 10);
+  const { count, lastDate } = getStreak();
+  if (lastDate === today) return count; // already touched today
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const next = lastDate === yesterday ? count + 1 : 1;
+  safeSet(STREAK_KEY, { count: next, lastDate: today });
+  return next;
+}
+
 function getUsers() { return safeGet(AUTH_KEY, {}); }
 function saveUsers(users) { return safeSet(AUTH_KEY, users); }
 function getSession() { return safeGet(SESSION_KEY, null); }
@@ -59,12 +73,13 @@ function saveUserData(username, data) {
 }
 
 // ── Export / Import progress as a JSON file (manual backup / device transfer) ──
-function exportProgressFile({ username, displayName, checkedItems, notes, bookmarks, lastWatched }) {
+function exportProgressFile({ username, displayName, checkedItems, notes, bookmarks, lastWatched, challengesDone }) {
   const payload = {
     app: "NexusCodex", version: 1, exportedAt: new Date().toISOString(),
     username: username || null, displayName: displayName || null,
     checkedItems: checkedItems || {}, notes: notes || {},
     bookmarks: bookmarks || {}, lastWatched: lastWatched || {},
+    challengesDone: challengesDone || {},
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -344,7 +359,7 @@ function OnboardingModal({ onClose, onSignIn }) {
 }
 
 
-function ProfilePanel({ username, checkedItems, phases, phaseProgress, onLogout, onClose }) {
+function ProfilePanel({ username, checkedItems, phases, phaseProgress, onLogout, onClose, onExport, onImport, importMsg, streak }) {
   const user = username ? getUserData(username) : null;
   const displayName = user?.displayName || username || "Guest";
   const createdAt = user?.createdAt ? new Date(user.createdAt) : null;
@@ -352,6 +367,7 @@ function ProfilePanel({ username, checkedItems, phases, phaseProgress, onLogout,
     a + p.checklist.theory.length + p.checklist.programming.length + p.checklist.engineering.length, 0);
   const totalChecked = Object.values(checkedItems).filter(Boolean).length;
   const globalPct = Math.round((totalChecked / totalPossible) * 100);
+  const importRef = useRef(null);
 
   // Find best phase
   let bestPhase = null, bestPct = 0;
@@ -377,8 +393,9 @@ function ProfilePanel({ username, checkedItems, phases, phaseProgress, onLogout,
       backdropFilter: "blur(8px)", paddingTop: "60px", paddingRight: "16px",
     }}>
       <div className="cmd-modal" onClick={e => e.stopPropagation()} style={{
-        width: "min(340px, 92vw)", background: "#050505",
+        width: "min(360px, 92vw)", background: "#050505",
         border: "1px solid #1a1a1a", boxShadow: "0 32px 80px rgba(0,0,0,0.9), 0 0 0 1px #C8F54211",
+        maxHeight: "90vh", overflowY: "auto",
       }}>
         {/* Avatar + name */}
         <div style={{ padding: "22px 20px 18px", borderBottom: "1px solid #0e0e0e" }}>
@@ -398,6 +415,16 @@ function ProfilePanel({ username, checkedItems, phases, phaseProgress, onLogout,
             </div>
             <button onClick={onClose} style={{ background: "none", border: "none", color: "#333", cursor: "pointer", fontSize: "16px" }}>×</button>
           </div>
+          {/* Streak */}
+          {streak > 0 && (
+            <div style={{ marginTop: "14px", display: "flex", alignItems: "center", gap: "10px", padding: "9px 12px", background: "#0a0800", border: "1px solid #F5E24222" }}>
+              <span style={{ fontSize: "16px" }}>🔥</span>
+              <div>
+                <div style={{ fontSize: "13px", color: "#F5E242", fontFamily: "'DM Serif Display', serif" }}>{streak}-day streak</div>
+                <div style={{ fontSize: "9px", color: "#666", letterSpacing: "0.08em" }}>Keep studying daily to grow it</div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Stats grid */}
@@ -418,7 +445,7 @@ function ProfilePanel({ username, checkedItems, phases, phaseProgress, onLogout,
         </div>
 
         {/* Phase breakdown */}
-        <div style={{ padding: "14px 20px", borderBottom: "1px solid #0e0e0e", maxHeight: "180px", overflowY: "auto" }}>
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid #0e0e0e", maxHeight: "160px", overflowY: "auto" }}>
           <div style={{ fontSize: "8px", color: "#555", letterSpacing: "0.2em", marginBottom: "10px" }}>PHASE BREAKDOWN</div>
           {phases.map((p, i) => {
             const pp = phaseProgress(i);
@@ -450,6 +477,39 @@ function ProfilePanel({ username, checkedItems, phases, phaseProgress, onLogout,
             </div>
           </div>
         )}
+
+        {/* Export / Import */}
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid #0e0e0e" }}>
+          <div style={{ fontSize: "8px", color: "#555", letterSpacing: "0.2em", marginBottom: "10px" }}>BACKUP & RESTORE</div>
+          {importMsg && (
+            <div style={{ padding: "8px 10px", marginBottom: "8px", background: importMsg.type === "ok" ? "#0a1400" : "#1a0000", border: `1px solid ${importMsg.type === "ok" ? "#C8F54233" : "#F5544233"}`, fontSize: "10px", color: importMsg.type === "ok" ? "#C8F542" : "#F55442" }}>
+              {importMsg.type === "ok" ? "✓ " : "✗ "}{importMsg.text}
+            </div>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+            <button onClick={onExport} style={{
+              padding: "9px 10px", background: "#0a0a0a", color: "#888",
+              border: "1px solid #1e1e1e", cursor: "pointer", fontSize: "9px",
+              letterSpacing: "0.12em", fontFamily: "inherit", textAlign: "center", transition: "all 0.15s",
+            }}
+              onMouseEnter={e => { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.borderColor = "#444"; }}
+              onMouseLeave={e => { e.currentTarget.style.color = "#888"; e.currentTarget.style.borderColor = "#1e1e1e"; }}
+            >↓ EXPORT</button>
+            <button onClick={() => importRef.current?.click()} style={{
+              padding: "9px 10px", background: "#0a0a0a", color: "#888",
+              border: "1px solid #1e1e1e", cursor: "pointer", fontSize: "9px",
+              letterSpacing: "0.12em", fontFamily: "inherit", textAlign: "center", transition: "all 0.15s",
+            }}
+              onMouseEnter={e => { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.borderColor = "#444"; }}
+              onMouseLeave={e => { e.currentTarget.style.color = "#888"; e.currentTarget.style.borderColor = "#1e1e1e"; }}
+            >↑ IMPORT</button>
+            <input ref={importRef} type="file" accept=".json" style={{ display: "none" }}
+              onChange={e => { if (e.target.files[0]) onImport(e.target.files[0]); e.target.value = ""; }} />
+          </div>
+          <div style={{ fontSize: "9px", color: "#444", marginTop: "8px", lineHeight: "1.5" }}>
+            Export saves your progress to a JSON file for backup or transfer to another device.
+          </div>
+        </div>
 
         {/* Actions */}
         <div style={{ padding: "14px 20px", display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -483,7 +543,158 @@ function ProfilePanel({ username, checkedItems, phases, phaseProgress, onLogout,
   );
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   TOAST NOTIFICATION SYSTEM
+═══════════════════════════════════════════════════════════════ */
+function ToastContainer({ toasts }) {
+  return (
+    <div style={{
+      position: "fixed", bottom: "48px", right: "16px", zIndex: 9999,
+      display: "flex", flexDirection: "column", gap: "8px", pointerEvents: "none",
+    }}>
+      {toasts.map(t => (
+        <div key={t.id} style={{
+          padding: "10px 16px", background: "#111", border: `1px solid ${t.color || "#2a2a2a"}`,
+          color: "#e0e0e0", fontSize: "12px", fontFamily: "Inter, sans-serif",
+          display: "flex", alignItems: "center", gap: "10px",
+          boxShadow: `0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px ${t.color || "#333"}22`,
+          animation: "toastIn 0.25s cubic-bezier(0.4,0,0.2,1)",
+          maxWidth: "320px",
+        }}>
+          {t.icon && <span style={{ fontSize: "14px", flexShrink: 0 }}>{t.icon}</span>}
+          <span>{t.message}</span>
+          {t.color && <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: t.color, flexShrink: 0 }} />}
+        </div>
+      ))}
+    </div>
+  );
+}
 
+/* ═══════════════════════════════════════════════════════════════
+   CONFETTI — canvas burst for phase completion
+═══════════════════════════════════════════════════════════════ */
+function ConfettiCanvas({ color, onDone }) {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const COLORS = [color, "#C8F542", "#42C8F5", "#A742F5", "#F5E242", "#fff"];
+    const particles = Array.from({ length: 140 }, () => ({
+      x: Math.random() * canvas.width,
+      y: -10 - Math.random() * 200,
+      r: 3 + Math.random() * 5,
+      d: Math.random() * 8 + 2,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      tilt: Math.random() * 10 - 5,
+      tiltAngle: Math.random() * Math.PI * 2,
+      tiltSpeed: 0.04 + Math.random() * 0.06,
+      opacity: 1,
+    }));
+    let frame = 0;
+    let raf;
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.tiltAngle += p.tiltSpeed;
+        p.y += p.d;
+        p.tilt = Math.sin(p.tiltAngle) * 12;
+        p.opacity = Math.max(0, 1 - frame / 120);
+        ctx.globalAlpha = p.opacity;
+        ctx.beginPath();
+        ctx.ellipse(p.x + p.tilt, p.y, p.r, p.r * 0.5, p.tiltAngle, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      frame++;
+      if (frame < 150) raf = requestAnimationFrame(draw);
+      else onDone();
+    }
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [color, onDone]);
+  return (
+    <canvas ref={canvasRef} style={{
+      position: "fixed", inset: 0, zIndex: 8000, pointerEvents: "none",
+    }} />
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   POMODORO TIMER — 25 / 5 study-break cycle in the status bar
+═══════════════════════════════════════════════════════════════ */
+function PomodoroTimer({ onToast }) {
+  const WORK = 25 * 60, BREAK = 5 * 60;
+  const [running, setRunning] = useState(false);
+  const [mode, setMode] = useState("work"); // "work" | "break"
+  const [secs, setSecs] = useState(WORK);
+  const [sessions, setSessions] = useState(0);
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    if (!running) { clearInterval(intervalRef.current); return; }
+    intervalRef.current = setInterval(() => {
+      setSecs(s => {
+        if (s <= 1) {
+          clearInterval(intervalRef.current);
+          if (mode === "work") {
+            setSessions(n => n + 1);
+            setMode("break");
+            setSecs(BREAK);
+            onToast({ message: "Focus session done! Take a 5-min break.", icon: "☕", color: "#42C8F5" });
+          } else {
+            setMode("work");
+            setSecs(WORK);
+            onToast({ message: "Break over — back to it!", icon: "🍅", color: "#C8F542" });
+          }
+          setRunning(false);
+          return 1;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(intervalRef.current);
+  }, [running, mode, onToast]);
+
+  const fmt = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  const reset = () => { setRunning(false); setSecs(mode === "work" ? WORK : BREAK); };
+  const toggle = () => setRunning(r => !r);
+  const isWork = mode === "work";
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <span style={{ fontSize: "9px", color: isWork ? "#C8F542" : "#42C8F5" }}>{isWork ? "🍅" : "☕"}</span>
+      <span style={{
+        fontSize: "11px", color: running ? (isWork ? "#C8F542" : "#42C8F5") : "#555",
+        fontFamily: "'DM Mono', monospace", minWidth: "38px", textAlign: "center",
+        transition: "color 0.3s",
+      }}>{fmt(secs)}</span>
+      <button onClick={toggle} title={running ? "Pause" : "Start"} aria-label={running ? "Pause timer" : "Start timer"} style={{
+        background: "none", border: "1px solid #222", color: running ? "#C8F542" : "#555",
+        cursor: "pointer", fontSize: "9px", padding: "2px 6px", fontFamily: "inherit",
+        transition: "all 0.15s",
+      }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = "#444"; e.currentTarget.style.color = "#ccc"; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = "#222"; e.currentTarget.style.color = running ? "#C8F542" : "#555"; }}
+      >{running ? "⏸" : "▶"}</button>
+      <button onClick={reset} title="Reset timer" aria-label="Reset timer" style={{
+        background: "none", border: "none", color: "#444", cursor: "pointer",
+        fontSize: "10px", padding: "2px 4px", fontFamily: "inherit", transition: "color 0.15s",
+      }}
+        onMouseEnter={e => e.currentTarget.style.color = "#888"}
+        onMouseLeave={e => e.currentTarget.style.color = "#444"}
+      >↺</button>
+      {sessions > 0 && (
+        <span style={{ fontSize: "8px", color: "#555" }} title={`${sessions} session${sessions > 1 ? "s" : ""} today`}>
+          {"🍅".repeat(Math.min(sessions, 4))}{sessions > 4 ? ` ×${sessions}` : ""}
+        </span>
+      )}
+    </div>
+  );
+}
 
 /* ═══════════════════════════════════════════════════════════════
    INJECT GLOBAL CSS — animations, fonts, custom cursor, scrollbar
@@ -651,6 +862,11 @@ const GlobalStyles = () => {
 
       /* Sidebar footer btn */
       .sidebar-footer-btn:hover { border-color: #333 !important; color: #777 !important; }
+
+      @keyframes toastIn {
+        from { opacity: 0; transform: translateX(24px); }
+        to   { opacity: 1; transform: translateX(0); }
+      }
 
       /* ── ACCESSIBILITY: visible focus rings for keyboard navigation ── */
       a:focus-visible, button:focus-visible, input:focus-visible,
@@ -1104,23 +1320,57 @@ function CursorGlow() {
 /* ═══════════════════════════════════════════════════════════════
    COMMAND PALETTE
 ═══════════════════════════════════════════════════════════════ */
-function CommandPalette({ phases, onPhase, onClose, checkedItems }) {
+function CommandPalette({ phases, onPhase, onClose, checkedItems, resourcesByPhase }) {
   const [query, setQuery] = useState("");
+  const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef(null);
   useEffect(() => { inputRef.current?.focus(); }, []);
 
-  const commands = [
-    ...phases.map(p => ({
-      label: `Phase ${p.id} — ${p.shortTitle}`,
-      sub: p.title, icon: p.icon, color: p.color,
-      action: () => { onPhase(p.id - 1); onClose(); }
-    })),
-    { label: "Home", sub: "Back to landing page", icon: "◉", color: "#888", action: onClose },
-  ];
+  // Phase navigation commands
+  const phaseCommands = phases.map(p => ({
+    type: "phase",
+    label: `Phase ${p.id} — ${p.shortTitle}`,
+    sub: p.title, icon: p.icon, color: p.color,
+    action: () => { onPhase(p.id - 1); onClose(); }
+  }));
 
-  const filtered = query
-    ? commands.filter(c => c.label.toLowerCase().includes(query.toLowerCase()) || c.sub.toLowerCase().includes(query.toLowerCase()))
-    : commands;
+  // Global resource search (only when there's a query)
+  const resourceResults = query.trim().length >= 2
+    ? phases.flatMap(p => {
+        const res = resourcesByPhase[p.id];
+        if (!res) return [];
+        const all = [
+          ...res.courses.map(r => ({ ...r, cat: "Course" })),
+          ...res.books.map(r => ({ ...r, cat: "Book" })),
+          ...res.videos.map(r => ({ ...r, cat: "Video" })),
+          ...res.practice.map(r => ({ ...r, cat: "Practice" })),
+        ];
+        return all
+          .filter(r => r.name.toLowerCase().includes(query.toLowerCase()) || r.tag?.toLowerCase().includes(query.toLowerCase()))
+          .slice(0, 3)
+          .map(r => ({
+            type: "resource",
+            label: r.name,
+            sub: `Phase ${p.id} · ${p.shortTitle} — ${r.cat}`,
+            icon: r.cat === "Video" ? "▶" : r.cat === "Book" ? "📖" : r.cat === "Practice" ? "⚡" : "⬡",
+            color: p.color,
+            url: r.url,
+            action: () => { onPhase(p.id - 1); onClose(); },
+          }));
+      }).slice(0, 8)
+    : [];
+
+  const commands = query.trim() ? [...resourceResults, ...phaseCommands.filter(c =>
+    c.label.toLowerCase().includes(query.toLowerCase()) || c.sub.toLowerCase().includes(query.toLowerCase())
+  )] : phaseCommands;
+
+  useEffect(() => setActiveIdx(0), [query]);
+
+  const handleKeyDown = (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, commands.length - 1)); }
+    if (e.key === "ArrowUp") { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, 0)); }
+    if (e.key === "Enter" && commands[activeIdx]) commands[activeIdx].action();
+  };
 
   return (
     <div className="cmd-overlay" onClick={onClose} style={{
@@ -1130,57 +1380,76 @@ function CommandPalette({ phases, onPhase, onClose, checkedItems }) {
       backdropFilter: "blur(8px)",
     }}>
       <div className="cmd-modal" onClick={e => e.stopPropagation()} style={{
-        width: "min(560px, 90vw)",
+        width: "min(600px, 92vw)",
         background: "#080808", border: "1px solid #2a2a2a",
         borderRadius: "8px", overflow: "hidden",
         boxShadow: "0 32px 80px rgba(0,0,0,0.8), 0 0 0 1px #C8F54222",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px 16px", borderBottom: "1px solid #141414" }}>
           <span style={{ fontSize: "14px", color: "#444" }}>⌘</span>
-          <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
-            placeholder="Search phases, topics..."
+          <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleKeyDown}
+            placeholder="Search phases, resources, topics across all phases…"
             style={{
               flex: 1, background: "none", border: "none", outline: "none",
               color: "#e0e0e0", fontSize: "14px", fontFamily: "'DM Mono', 'Courier New', monospace",
             }} />
+          {query && <button onClick={() => setQuery("")} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "14px" }}>×</button>}
           <span style={{ fontSize: "10px", color: "#888", fontFamily: "'DM Mono', monospace", border: "1px solid #333", padding: "2px 6px", borderRadius: "3px" }}>ESC</span>
         </div>
-        <div style={{ maxHeight: "360px", overflowY: "auto" }}>
-          {filtered.map((cmd, i) => (
-            <div key={i} onClick={cmd.action} style={{
-              display: "flex", alignItems: "center", gap: "14px",
-              padding: "12px 16px", cursor: "pointer",
-              borderBottom: "1px solid #0d0d0d",
-              transition: "background 0.1s",
-            }}
-              onMouseEnter={e => e.currentTarget.style.background = "#111"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-            >
-              <div style={{
-                width: "30px", height: "30px", background: cmd.color + "18",
-                border: `1px solid ${cmd.color}33`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "14px", color: cmd.color, flexShrink: 0,
-                fontFamily: "'DM Serif Display', Georgia, serif",
-              }}>{cmd.icon}</div>
-              <div>
-                <div style={{ fontSize: "14px", color: "#ebebeb", fontWeight: "500", fontFamily: "Inter, sans-serif" }}>{cmd.label}</div>
-                <div style={{ fontSize: "11px", color: "#777", marginTop: "1px", fontFamily: "'DM Mono', monospace" }}>{cmd.sub}</div>
+        <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+          {/* Section headers */}
+          {query.trim().length >= 2 && resourceResults.length > 0 && (
+            <div style={{ padding: "8px 16px 4px", fontSize: "8px", color: "#555", letterSpacing: "0.2em" }}>RESOURCES ACROSS ALL PHASES</div>
+          )}
+          {commands.map((cmd, i) => {
+            const isRes = cmd.type === "resource";
+            const isActive = i === activeIdx;
+            return (
+              <div key={i} onClick={cmd.action} style={{
+                display: "flex", alignItems: "center", gap: "14px",
+                padding: "11px 16px", cursor: "pointer",
+                borderBottom: "1px solid #0d0d0d",
+                background: isActive ? "#131313" : "transparent",
+                transition: "background 0.1s",
+              }}
+                onMouseEnter={() => setActiveIdx(i)}
+              >
+                <div style={{
+                  width: "28px", height: "28px", flexShrink: 0,
+                  background: cmd.color + "18", border: `1px solid ${cmd.color}33`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: isRes ? "12px" : "14px", color: cmd.color,
+                  fontFamily: isRes ? "inherit" : "'DM Serif Display', serif",
+                }}>{cmd.icon}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "13px", color: "#ebebeb", fontWeight: "500", fontFamily: "Inter, sans-serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cmd.label}</div>
+                  <div style={{ fontSize: "10px", color: "#777", marginTop: "1px", fontFamily: "'DM Mono', monospace" }}>{cmd.sub}</div>
+                </div>
+                {isRes && cmd.url && (
+                  <a href={cmd.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{
+                    fontSize: "9px", color: "#555", border: "1px solid #222", padding: "3px 7px",
+                    textDecoration: "none", flexShrink: 0, whiteSpace: "nowrap",
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.color = "#aaa"}
+                    onMouseLeave={e => e.currentTarget.style.color = "#555"}
+                  >↗ OPEN</a>
+                )}
               </div>
-            </div>
-          ))}
-          {filtered.length === 0 && (
+            );
+          })}
+          {commands.length === 0 && (
             <div style={{ padding: "24px", textAlign: "center", color: "#666", fontSize: "13px", fontFamily: "'DM Mono', monospace" }}>
               No results for "{query}"
             </div>
           )}
         </div>
-        <div style={{ padding: "10px 16px", borderTop: "1px solid #0d0d0d", display: "flex", gap: "16px" }}>
+        <div style={{ padding: "10px 16px", borderTop: "1px solid #0d0d0d", display: "flex", gap: "16px", alignItems: "center" }}>
           {[["↑↓", "navigate"], ["↵", "select"], ["esc", "close"]].map(([k, v]) => (
             <span key={k} style={{ fontSize: "10px", color: "#888", fontFamily: "'DM Mono', monospace" }}>
               <span style={{ color: "#ccc", background: "#1a1a1a", border: "1px solid #333", padding: "1px 5px", borderRadius: "2px", marginRight: "5px" }}>{k}</span>{v}
             </span>
           ))}
+          {query.trim().length >= 2 && <span style={{ marginLeft: "auto", fontSize: "9px", color: "#555" }}>{commands.length} result{commands.length !== 1 ? "s" : ""}</span>}
         </div>
       </div>
     </div>
@@ -1727,8 +1996,20 @@ export default function App() {
   const [resumeBanner, setResumeBanner] = useState(null); // last-location info shown on landing
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [importMsg, setImportMsg] = useState(null); // { type: "ok"|"error", text }
+  const [toasts, setToasts] = useState([]);  // [{ id, message, icon, color }]
+  const [confetti, setConfetti] = useState(null); // { color } | null
+  const [challengesDone, setChallengesDone] = useState({}); // { "phaseId-idx": true }
+  const [streak, setStreak] = useState(() => getStreak().count);
   const contentRef = useRef(null);
   const navRestored = useRef(false);
+  const prevPhasePctRef = useRef({});  // track per-phase pct to detect 100% transition
+
+  // Toast helper
+  const addToast = useCallback((msg) => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev.slice(-4), { id, ...msg }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3200);
+  }, []);
 
   // ── First-visit onboarding tour ──
   useEffect(() => {
@@ -1783,8 +2064,12 @@ export default function App() {
         if (userData.notes) setNotes(userData.notes);
         if (userData.bookmarks) setBookmarks(userData.bookmarks);
         if (userData.lastWatched) setLastWatched(userData.lastWatched);
+        if (userData.challengesDone) setChallengesDone(userData.challengesDone);
       }
     }
+    // Touch streak on every visit
+    const s = touchStreak();
+    setStreak(s);
     setAuthChecked(true);
   }, []);
 
@@ -1792,11 +2077,11 @@ export default function App() {
   useEffect(() => {
     if (currentUser && authChecked) {
       saveUserData(currentUser, {
-        checkedItems, notes, bookmarks, lastWatched,
+        checkedItems, notes, bookmarks, lastWatched, challengesDone,
         lastActive: Date.now(),
       });
     }
-  }, [checkedItems, notes, bookmarks, lastWatched, currentUser, authChecked]);
+  }, [checkedItems, notes, bookmarks, lastWatched, challengesDone, currentUser, authChecked]);
 
   const handleAuth = (username) => {
     setAuthOpen(false);
@@ -1809,6 +2094,7 @@ export default function App() {
       if (userData?.notes) setNotes(userData.notes);
       if (userData?.bookmarks) setBookmarks(userData.bookmarks);
       if (userData?.lastWatched) setLastWatched(userData.lastWatched);
+      if (userData?.challengesDone) setChallengesDone(userData.challengesDone);
     }
   };
 
@@ -1819,6 +2105,7 @@ export default function App() {
     setNotes({});
     setBookmarks({});
     setLastWatched({});
+    setChallengesDone({});
   };
 
   // ── Export current progress to a JSON file ──
@@ -1826,8 +2113,9 @@ export default function App() {
     exportProgressFile({
       username: currentUser,
       displayName: currentUser ? (getUserData(currentUser)?.displayName || currentUser) : null,
-      checkedItems, notes, bookmarks, lastWatched,
+      checkedItems, notes, bookmarks, lastWatched, challengesDone,
     });
+    addToast({ message: "Progress exported!", icon: "↓", color: "#C8F542" });
   };
 
   // ── Import progress from a JSON file (applies to current session; saved if logged in) ──
@@ -1838,9 +2126,12 @@ export default function App() {
       setNotes(data.notes || {});
       setBookmarks(data.bookmarks || {});
       setLastWatched(data.lastWatched || {});
+      if (data.challengesDone) setChallengesDone(data.challengesDone);
       setImportMsg({ type: "ok", text: currentUser ? "Progress imported and saved to your account." : "Progress imported for this session — sign in to keep it saved." });
+      addToast({ message: "Progress imported successfully", icon: "✓", color: "#C8F542" });
     } catch (err) {
       setImportMsg({ type: "error", text: err.message || "Import failed." });
+      addToast({ message: err.message || "Import failed", icon: "✗", color: "#F55442" });
     }
   };
 
@@ -1875,7 +2166,33 @@ export default function App() {
     return pp.total > 0 ? Math.round((pp.done / pp.total) * 100) : 0;
   });
 
-  const toggle = (key) => setCheckedItems(prev => ({ ...prev, [key]: !prev[key] }));
+  const toggle = (key) => {
+    setCheckedItems(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      const isNowChecked = next[key];
+      if (isNowChecked) {
+        addToast({ message: "Task completed!", icon: "✓", color: phase.color });
+        // Check if this just completed the phase
+        const doneCount = Object.keys(next).filter(k => k.startsWith(`${phase.id}-`) && next[k]).length;
+        const total = phase.checklist.theory.length + phase.checklist.programming.length + phase.checklist.engineering.length;
+        if (doneCount === total) {
+          setTimeout(() => {
+            setConfetti({ color: phase.color });
+            addToast({ message: `Phase ${phase.id} complete! 🎯`, icon: "🎉", color: phase.color });
+          }, 300);
+        }
+      }
+      return next;
+    });
+  };
+
+  const toggleChallenge = (key) => {
+    setChallengesDone(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      if (next[key]) addToast({ message: "Challenge marked done!", icon: "★", color: phase.color });
+      return next;
+    });
+  };
 
   const goPhase = (i) => {
     setActivePhase(i); setActiveTab("overview"); setResFilter("all");
@@ -1898,7 +2215,8 @@ export default function App() {
 
   const toggleBookmark = (url) => setBookmarks(prev => {
     const next = { ...prev };
-    if (next[url]) delete next[url]; else next[url] = true;
+    if (next[url]) { delete next[url]; addToast({ message: "Removed from saved", icon: "☆", color: "#888" }); }
+    else { next[url] = true; addToast({ message: "Resource saved!", icon: "★", color: "#F5E242" }); }
     return next;
   });
   const setNote = (key, text) => setNotes(prev => {
@@ -2004,8 +2322,10 @@ export default function App() {
         </nav>
 
         {authOpen && <AuthModal onAuth={handleAuth} onClose={() => setAuthOpen(false)} />}
-        {profileOpen && <ProfilePanel username={currentUser} checkedItems={checkedItems} phases={phases} phaseProgress={phaseProgress} onLogout={handleLogout} onClose={() => setProfileOpen(false)} onExport={handleExportProgress} onImport={handleImportProgress} importMsg={importMsg} />}
-        {cmdOpen && <CommandPalette phases={phases} onPhase={goPhase} onClose={() => { setCmdOpen(false); if (view === "landing") setView("landing"); }} checkedItems={checkedItems} />}
+        {profileOpen && <ProfilePanel username={currentUser} checkedItems={checkedItems} phases={phases} phaseProgress={phaseProgress} onLogout={handleLogout} onClose={() => setProfileOpen(false)} onExport={handleExportProgress} onImport={handleImportProgress} importMsg={importMsg} streak={streak} />}
+        {cmdOpen && <CommandPalette phases={phases} onPhase={goPhase} onClose={() => { setCmdOpen(false); if (view === "landing") setView("landing"); }} checkedItems={checkedItems} resourcesByPhase={resourcesByPhase} />}
+        <ToastContainer toasts={toasts} />
+        {confetti && <ConfettiCanvas color={confetti.color} onDone={() => setConfetti(null)} />}
         {showOnboarding && <OnboardingModal onClose={dismissOnboarding} onSignIn={() => { dismissOnboarding(); setAuthOpen(true); }} />}
 
         <TickerTape />
@@ -2252,11 +2572,13 @@ export default function App() {
       <Overlays />
       <CursorGlow />
 
-      {cmdOpen && <CommandPalette phases={phases} onPhase={goPhase} onClose={() => setCmdOpen(false)} checkedItems={checkedItems} />}
+      {cmdOpen && <CommandPalette phases={phases} onPhase={goPhase} onClose={() => setCmdOpen(false)} checkedItems={checkedItems} resourcesByPhase={resourcesByPhase} />}
       {authOpen && <AuthModal onAuth={handleAuth} onClose={() => setAuthOpen(false)} />}
-      {profileOpen && <ProfilePanel username={currentUser} checkedItems={checkedItems} phases={phases} phaseProgress={phaseProgress} onLogout={handleLogout} onClose={() => setProfileOpen(false)} onExport={handleExportProgress} onImport={handleImportProgress} importMsg={importMsg} />}
+      {profileOpen && <ProfilePanel username={currentUser} checkedItems={checkedItems} phases={phases} phaseProgress={phaseProgress} onLogout={handleLogout} onClose={() => setProfileOpen(false)} onExport={handleExportProgress} onImport={handleImportProgress} importMsg={importMsg} streak={streak} />}
       {playingVideo && <VideoModal item={playingVideo.item} embedUrl={playingVideo.embedUrl} accent={phase.color} onClose={() => setPlayingVideo(null)} />}
       {showOnboarding && <OnboardingModal onClose={dismissOnboarding} onSignIn={() => { dismissOnboarding(); setAuthOpen(true); }} />}
+      <ToastContainer toasts={toasts} />
+      {confetti && <ConfettiCanvas color={confetti.color} onDone={() => setConfetti(null)} />}
 
       {/* SIDEBAR */}
       <aside style={{
@@ -2306,6 +2628,17 @@ export default function App() {
             <Sparkline values={sparklineData} color="#C8F54288" width={100} height={16} />
             <span style={{ fontSize: "9px", color: "#777", fontFamily: "'DM Mono', monospace" }}>{totalChecked}<span style={{color:"#555"}}>/{totalPossible}</span></span>
           </div>
+          {/* Streak pill */}
+          {streak > 0 && (
+            <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "6px", padding: "5px 8px", background: "#0a0800", border: "1px solid #F5E24222", borderRadius: "3px" }}>
+              <span style={{ fontSize: "12px" }}>🔥</span>
+              <span style={{ fontSize: "9px", color: "#F5E24299", letterSpacing: "0.08em" }}>{streak}-day streak</span>
+              <div style={{ flex: 1, height: "2px", background: "#1a1500", position: "relative" }}>
+                <div style={{ height: "100%", width: `${Math.min(streak / 30 * 100, 100)}%`, background: "#F5E242" }} />
+              </div>
+              <span style={{ fontSize: "8px", color: "#666" }}>{Math.min(streak, 30)}/30</span>
+            </div>
+          )}
         </div>
 
         {/* NAV or TIMELINE */}
@@ -2546,11 +2879,56 @@ export default function App() {
               {/* Topics at a Glance — 3-column summary */}
               {!isMobile && (
                 <div className="fade-up stagger-1" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", marginBottom: "32px" }}>
-                  {[
-                    { label: "Math Theory", icon: "∑", items: phase.math.slice(0, 3), tab: "math" },
-                    { label: "C Programming", icon: "⌨", items: phase.cpp.slice(0, 3), tab: "systems" },
-                    { label: "Hardware", icon: "▣", items: phase.hardware.slice(0, 3), tab: "systems" },
-                  ].map(({ label, icon, items, tab }) => (
+                  {(() => {
+                    const glanceLabels = {
+                      1: [
+                        { label: "Math Theory",   icon: "∑" },
+                        { label: "C Programming", icon: "⌨" },
+                        { label: "Hardware",       icon: "▣" },
+                      ],
+                      2: [
+                        { label: "Graph Theory",  icon: "∑" },
+                        { label: "C & Pointers",  icon: "→" },
+                        { label: "Memory & RAM",  icon: "▣" },
+                      ],
+                      3: [
+                        { label: "Complexity",    icon: "Θ" },
+                        { label: "Data Structures", icon: "⌨" },
+                        { label: "CPU & Cache",   icon: "▣" },
+                      ],
+                      4: [
+                        { label: "OS Math",       icon: "∑" },
+                        { label: "Assembly & C",  icon: "⌨" },
+                        { label: "Architecture",  icon: "⚙" },
+                      ],
+                      5: [
+                        { label: "Network Math",  icon: "∑" },
+                        { label: "Sockets & C",   icon: "⌨" },
+                        { label: "NIC & Hardware", icon: "▣" },
+                      ],
+                      6: [
+                        { label: "Formal Grammars", icon: "λ" },
+                        { label: "Lexer & Parser",  icon: "⌨" },
+                        { label: "Code Generation", icon: "▣" },
+                      ],
+                      7: [
+                        { label: "Query Theory",   icon: "∑" },
+                        { label: "Storage Eng.",   icon: "⌨" },
+                        { label: "DB Hardware",    icon: "▣" },
+                      ],
+                      8: [
+                        { label: "Cryptography",   icon: "∑" },
+                        { label: "Exploitation",   icon: "⌨" },
+                        { label: "HW Security",    icon: "▣" },
+                      ],
+                    };
+                    const labels = glanceLabels[phase.id] || glanceLabels[1];
+                    return [
+                      { label: labels[0].label, icon: labels[0].icon, items: phase.math.slice(0, 3), tab: "math" },
+                      { label: labels[1].label, icon: labels[1].icon, items: phase.cpp.slice(0, 3), tab: "systems" },
+                      { label: labels[2].label, icon: labels[2].icon, items: phase.hardware.slice(0, 3), tab: "systems" },
+                    ];
+                  })().map(({ label, icon, items, tab }) => (
                     <button key={label} onClick={() => setActiveTab(tab)} style={{
                       padding: "14px 16px", background: "#070707", border: `1px solid #111`,
                       cursor: "pointer", textAlign: "left", fontFamily: "inherit", transition: "all 0.15s",
@@ -2842,15 +3220,68 @@ export default function App() {
           {/* ── CHALLENGES ── */}
           {activeTab === "challenges" && (
             <div>
-              <SectionLabel color={phase.color}>Graduate-Level Challenges</SectionLabel>
-              {phase.challenges.map((c, i) => (
-                <div key={i} className="fade-up" style={{ animationDelay: `${i * 70}ms`, padding: "18px 22px", marginBottom: "8px", background: "#080808", borderLeft: `3px solid ${phase.color}`, borderRadius: "0 8px 8px 0", transition: "background 0.15s" }}>
-                  <div style={{ display: "flex", gap: "14px", alignItems: "flex-start" }}>
-                    <div style={{ fontSize: "8px", color: phase.color, background: phase.darkColor, border: `1px solid ${phase.color}33`, padding: "3px 8px", flexShrink: 0, marginTop: "3px", fontWeight: "900" }}>#{String(i + 1).padStart(2, "0")}</div>
-                    <span style={{ fontSize: "15px", color: "#e0e0e0", lineHeight: "1.75", fontFamily: "Inter, system-ui, sans-serif" }}>{c}</span>
+              {/* Challenges progress */}
+              {(() => {
+                const total = phase.challenges.length;
+                const done = phase.challenges.filter((_, i) => challengesDone[`${phase.id}-${i}`]).length;
+                const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                return (
+                  <div className="fade-up" style={{ display: "flex", alignItems: "center", gap: "20px", padding: "16px 20px", marginBottom: "24px", background: phase.darkColor, border: `1px solid ${phase.color}33` }}>
+                    <ProgressRing pct={pct} size={48} stroke={2.5} color={phase.color} label={pct} />
+                    <div>
+                      <div style={{ fontSize: "16px", color: "#f0f0f0", fontFamily: "Inter, sans-serif", fontWeight: "600", marginBottom: "4px" }}>
+                        {done === 0 ? "Ready for a challenge?" : done < total ? `${done} of ${total} challenges conquered` : "All challenges complete! 🏆"}
+                      </div>
+                      <div style={{ fontSize: "10px", color: "#888" }}>Click any challenge to mark it done.</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })()}
+
+              <SectionLabel color={phase.color}>Graduate-Level Challenges</SectionLabel>
+              {phase.challenges.map((c, i) => {
+                const k = `${phase.id}-${i}`;
+                const done = !!challengesDone[k];
+                return (
+                  <div key={i}
+                    className="fade-up"
+                    onClick={() => toggleChallenge(k)}
+                    role="checkbox"
+                    aria-checked={done}
+                    tabIndex={0}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleChallenge(k); } }}
+                    style={{
+                      animationDelay: `${i * 70}ms`, padding: "18px 22px", marginBottom: "8px",
+                      background: done ? phase.darkColor : "#080808",
+                      borderLeft: `3px solid ${done ? phase.color : phase.color + "44"}`,
+                      borderTop: `1px solid ${done ? phase.color + "33" : "#111"}`,
+                      borderBottom: `1px solid ${done ? phase.color + "33" : "#111"}`,
+                      borderRight: `1px solid ${done ? phase.color + "33" : "#111"}`,
+                      borderRadius: "0 8px 8px 0", transition: "all 0.2s", cursor: "pointer",
+                    }}
+                    onMouseEnter={e => { if (!done) e.currentTarget.style.background = "#0f0f0f"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = done ? phase.darkColor : "#080808"; }}
+                  >
+                    <div style={{ display: "flex", gap: "14px", alignItems: "flex-start" }}>
+                      <div style={{
+                        width: "20px", height: "20px", flexShrink: 0, marginTop: "2px",
+                        border: `1.5px solid ${done ? phase.color : "#2a2a2a"}`,
+                        background: done ? phase.color : "transparent",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "10px", color: "#000", fontWeight: "900", transition: "all 0.18s",
+                      }}>
+                        {done ? "★" : <span style={{ fontSize: "8px", color: "#444" }}>{String(i + 1).padStart(2, "0")}</span>}
+                      </div>
+                      <span style={{
+                        fontSize: "15px", color: done ? "#888" : "#e0e0e0",
+                        lineHeight: "1.75", fontFamily: "Inter, system-ui, sans-serif",
+                        textDecoration: done ? "line-through" : "none",
+                        transition: "all 0.2s",
+                      }}>{c}</span>
+                    </div>
+                  </div>
+                );
+              })}
 
               <div style={{ margin: "32px 0 20px" }} />
               <SectionLabel color={phase.color}>Mini Exam Format</SectionLabel>
@@ -2875,7 +3306,7 @@ export default function App() {
         </div>
 
         {/* Bottom status bar */}
-        <div style={{ padding: "8px 20px", borderTop: "1px solid #0a0a0a", background: "#030303", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ padding: "8px 20px", borderTop: "1px solid #0a0a0a", background: "#030303", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
           <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
             <span style={{ fontSize: "9px", color: "#777", letterSpacing: "0.15em" }}>P{phase.id}/{phases.length}</span>
             <span style={{ fontSize: "9px", color: "#444" }}>·</span>
@@ -2883,10 +3314,10 @@ export default function App() {
             <span style={{ fontSize: "9px", color: "#444" }}>·</span>
             <span style={{ fontSize: "9px", color: phasePct === 100 ? "#C8F542" : "#555", letterSpacing: "0.08em" }}>{phasePct}%</span>
           </div>
-          <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
-            <span style={{ fontSize: "9px", color: "#777", letterSpacing: "0.12em" }}>⌘K SEARCH</span>
-            <span style={{ fontSize: "9px", color: "#555" }}>MIT · CMU · STANFORD · BERKELEY</span>
-          </div>
+          <PomodoroTimer onToast={addToast} />
+          {!isMobile && (
+            <span style={{ fontSize: "9px", color: "#444" }}>MIT · CMU · STANFORD · BERKELEY</span>
+          )}
         </div>
       </main>
     </div>
